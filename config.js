@@ -10,9 +10,7 @@ const TAS_CONFIG = {
     TABLE_USER: "Personnel",
     TABLE_SETTINGS: "Settings",
     
-    // 👇 บรรทัดนี้คือตัวที่หายไปครับ ทำให้เกิด Error
-    TABLE_SOURCE: "TimeStampPlus",  
-    
+   
     TABLE_TARGET: "TimeStamp"
 };
 
