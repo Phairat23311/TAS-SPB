@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ลงเวลาทำงาน - TAS-SPB</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
+    <style> body { font-family: 'Sarabun', sans-serif; } </style>
+</head>
+<body class="bg-gray-50 h-screen flex flex-col items-center p-4">
+
+    <div class="w-full max-w-md flex justify-between items-center mb-6 pt-4">
+        <div class="text-gray-700">
+            สวัสดี, <span id="userName" class="font-bold text-blue-600">...</span>
+        </div>
+        <button onclick="logout()" class="text-sm text-red-500 hover:underline">ออกจากระบบ</button>
+    </div>
+
+    <div class="bg-white p-6 rounded-2xl shadow-lg w-full max-w-md text-center">
+        <p class="text-gray-500 mb-2">วันที่ปัจจุบัน</p>
+        <h2 id="dateDisplay" class="text-xl font-bold text-gray-800 mb-4">-</h2>
+        
+        <div class="bg-gray-100 rounded-xl p-4 mb-6">
+            <h1 id="clockDisplay" class="text-5xl font-mono font-bold text-gray-800 tracking-wider">00:00:00</h1>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <button onclick="recordTime('in')" class="bg-green-500 hover:bg-green-600 text-white py-4 rounded-xl font-bold text-lg shadow transition transform hover:scale-105">
+                🕒 เข้างาน
+            </button>
+            <button onclick="recordTime('out')" class="bg-orange-500 hover:bg-orange-600 text-white py-4 rounded-xl font-bold text-lg shadow transition transform hover:scale-105">
+                🏠 เลิกงาน
+            </button>
+        </div>
+
+        <div id="statusArea" class="mt-6 text-sm text-gray-600 border-t pt-4">
+            <p>สถานะวันนี้:</p>
+            <div class="flex justify-between mt-2">
+                <span>เข้า: <span id="timeInDisplay" class="font-bold">-</span></span>
+                <span>ออก: <span id="timeOutDisplay" class="font-bold">-</span></span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Config Supabase ---
+        const SUPABASE_URL = "https://tdcmbskmlrwhbjrjyjkk.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkY21ic2ttbHJ3aGJqcmp5amtrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI2MTY4NTYsImV4cCI6MjA3ODE5Mjg1Nn0.FeYe75J8X_2LoQgG_JWyPNCKcuCL_otsmSW0s5bijAg";
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // ตรวจสอบ Login
+        const user = JSON.parse(localStorage.getItem('tas_user'));
+        if (!user) window.location.href = 'login.html';
+
+        document.getElementById('userName').innerText = user.name;
+
+        // ฟังก์ชันนาฬิกา
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('clockDisplay').innerText = now.toLocaleTimeString('th-TH');
+            document.getElementById('dateDisplay').innerText = now.toLocaleDateString('th-TH', { 
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+            });
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // 🔥 ฟังก์ชันโหลดข้อมูลวันนี้ (แก้ไขเป็น TimeStampPlus)
+        async function loadTodayRecord() {
+            const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+            
+            const { data, error } = await supabase
+                .from('TimeStampPlus') // <--- แก้ไขตรงนี้
+                .select('*')
+                .eq('personnel_id', user.personnel_id)
+                .eq('work_date', today)
+                .single();
+
+            if (data) {
+                document.getElementById('timeInDisplay').innerText = data.time_in || "-";
+                document.getElementById('timeOutDisplay').innerText = data.time_out || "-";
+                return data; // Return existing record
+            } else {
+                document.getElementById('timeInDisplay').innerText = "-";
+                document.getElementById('timeOutDisplay').innerText = "-";
+                return null;
+            }
+        }
+        loadTodayRecord();
+
+        // 🔥 ฟังก์ชันบันทึกเวลา (แก้ไขเป็น TimeStampPlus)
+        async function recordTime(type) {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('th-TH', { hour12: false }); // HH:MM:SS
+            const today = now.toISOString().split('T')[0];
+
+            Swal.fire({
+                title: 'ยืนยันการลงเวลา?',
+                text: `คุณต้องการลงเวลา ${type === 'in' ? 'เข้างาน' : 'เลิกงาน'} เวลา ${timeStr} ใช่หรือไม่?`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'ยืนยัน',
+                cancelButtonText: 'ยกเลิก'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                    
+                    try {
+                        const existingRecord = await loadTodayRecord();
+                        let error;
+
+                        if (type === 'in') {
+                            // กรณีเข้างาน
+                            if (existingRecord) {
+                                // Update (ใช้ TimeStampPlus)
+                                const { error: upError } = await supabase
+                                    .from('TimeStampPlus') // <--- แก้ไขตรงนี้
+                                    .update({ time_in: timeStr })
+                                    .eq('id', existingRecord.id);
+                                error = upError;
+                            } else {
+                                // Insert (ใช้ TimeStampPlus)
+                                const { error: insError } = await supabase
+                                    .from('TimeStampPlus') // <--- แก้ไขตรงนี้
+                                    .insert([{ 
+                                        personnel_id: user.personnel_id,
+                                        full_name: user.name,
+                                        work_date: today,
+                                        time_in: timeStr,
+                                        verified: 0 // ถ้า TimeStampPlus ไม่มี column verified ให้ลบบรรทัดนี้ออก
+                                    }]);
+                                error = insError;
+                            }
+                        } else {
+                            // กรณีเลิกงาน
+                            if (existingRecord) {
+                                const { error: upError } = await supabase
+                                    .from('TimeStampPlus') // <--- แก้ไขตรงนี้
+                                    .update({ time_out: timeStr })
+                                    .eq('id', existingRecord.id);
+                                error = upError;
+                            } else {
+                                const { error: insError } = await supabase
+                                    .from('TimeStampPlus') // <--- แก้ไขตรงนี้
+                                    .insert([{ 
+                                        personnel_id: user.personnel_id,
+                                        full_name: user.name,
+                                        work_date: today,
+                                        time_out: timeStr,
+                                        verified: 0
+                                    }]);
+                                error = insError;
+                            }
+                        }
+
+                        if (error) throw error;
+
+                        await loadTodayRecord(); // โหลดข้อมูลใหม่มาแสดง
+                        Swal.fire('สำเร็จ', 'บันทึกเวลาเรียบร้อยแล้ว', 'success');
+
+                    } catch (err) {
+                        console.error(err);
+                        Swal.fire('เกิดข้อผิดพลาด', err.message || 'บันทึกไม่สำเร็จ', 'error');
+                    }
+                }
+            });
+        }
+
+        function logout() {
+            localStorage.removeItem('tas_user');
+            window.location.href = 'login.html';
+        }
+    </script>
+</body>
+</html>
