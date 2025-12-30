@@ -71,14 +71,12 @@
     </div>
 
     <script>
-        // --- Config ---
         const SUPABASE_URL = "https://tdcmbskmlrwhbjrjyjkk.supabase.co";
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkY21ic2ttbHJ3aGJqcmp5amtrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI2MTY4NTYsImV4cCI6MjA3ODE5Mjg1Nn0.FeYe75J8X_2LoQgG_JWyPNCKcuCL_otsmSW0s5bijAg";
         
         let client = null;
         let userData = null;
 
-        // ฟังก์ชันแจ้งเตือนบนหน้าจอ
         function showToast(text, isError = false) {
             const msg = document.getElementById('msg');
             msg.innerText = text;
@@ -87,7 +85,20 @@
             setTimeout(() => { msg.style.opacity = '0'; }, 3000);
         }
 
-        // 1. ตรวจสอบ Login และโหลด Library
+        // 🔥 ฟังก์ชันสร้าง ID ให้ไม่เกิน 20 ตัวอักษร (YYYYMMDDHHmm-RRRR)
+        function generateID() {
+            const now = new Date();
+            const yy = String(now.getFullYear()); // 2025
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            const h = String(now.getHours()).padStart(2, '0');
+            const m = String(now.getMinutes()).padStart(2, '0');
+            const s = String(now.getSeconds()).padStart(2, '0');
+            const r = Math.floor(Math.random() * 9999).toString().padStart(4, '0');
+            // รวมกันจะได้ประมาณ 18 ตัวอักษร (เช่น 202502121230005555)
+            return `${yy}${mm}${dd}${h}${m}${s}${r}`;
+        }
+
         function init() {
             try {
                 const stored = localStorage.getItem('tas_user');
@@ -104,7 +115,6 @@
                 }
                 client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
                 
-                // เริ่มทำงาน
                 startClock();
                 loadTodayRecord();
 
@@ -114,10 +124,8 @@
             }
         }
 
-        // 2. ฟังก์ชันนาฬิกา และตัวช่วย Format วันที่
         function getDBFormatValues() {
             const now = new Date();
-            // ดึงค่า ปี เดือน วัน ชั่วโมง นาที วินาที แบบ Local Time (แก้ปัญหา UTC)
             const year = now.getFullYear();
             const month = String(now.getMonth() + 1).padStart(2, '0');
             const day = String(now.getDate()).padStart(2, '0');
@@ -136,26 +144,21 @@
         function startClock() {
             setInterval(() => {
                 const val = getDBFormatValues();
-                // แสดงเวลาปัจจุบัน
                 document.getElementById('clockDisplay').innerText = val.time;
-                // แสดงวันที่แบบ DB (YYYY-MM-DD)
                 document.getElementById('dbDateDisplay').innerText = val.date;
-                // แสดงวันที่แบบคนอ่านง่าย
                 document.getElementById('humanDate').innerText = val.obj.toLocaleDateString('th-TH', {
                     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
                 });
             }, 1000);
             
-            // รันครั้งแรกทันทีไม่ต้องรอ 1 วิ
             const val = getDBFormatValues();
             document.getElementById('clockDisplay').innerText = val.time;
         }
 
-        // 3. โหลดข้อมูลวันนี้ (TimeStampPlus)
         async function loadTodayRecord() {
             if (!client) return;
             const val = getDBFormatValues();
-            const todayDB = val.date; // ใช้ YYYY-MM-DD ในการค้นหา
+            const todayDB = val.date;
 
             try {
                 const { data, error } = await client
@@ -175,38 +178,40 @@
                     return null;
                 }
             } catch (err) {
-                // PGRST116 = หาไม่เจอ (ปกติสำหรับคนยังไม่ลงเวลา)
                 if (err.code !== 'PGRST116') console.error(err);
                 return null;
             }
         }
 
-        // 4. บันทึกเวลา
         async function recordTime(type) {
             if (!client) return;
             if (!confirm(`ยืนยันการลงเวลา ${type === 'in' ? 'เข้างาน' : 'เลิกงาน'} ?`)) return;
 
             const val = getDBFormatValues();
-            const todayDB = val.date; // YYYY-MM-DD
-            const timeDB = val.time;  // HH:MM:SS
+            const todayDB = val.date;
+            const timeDB = val.time; 
 
             try {
                 const existing = await loadTodayRecord();
                 let error = null;
 
+                // 🔥 สร้าง ID ใหม่เตรียมไว้ (สำหรับ Insert)
+                const newID = generateID();
+
                 if (type === 'in') {
                     if (existing) {
-                        // มี record แล้ว -> อัปเดต time_in (แก้จากของเดิม หรือเติมใหม่)
+                        // Update
                         const { error: upError } = await client
                             .from('TimeStampPlus')
                             .update({ time_in: timeDB })
                             .eq('id', existing.id);
                         error = upError;
                     } else {
-                        // ยังไม่มี -> Insert ใหม่
+                        // Insert (ใส่ ID และตัด verified ออก)
                         const { error: insError } = await client
                             .from('TimeStampPlus')
                             .insert([{
+                                id: newID, // <-- ใส่ ID ที่สร้างเอง
                                 personnel_id: userData.personnel_id,
                                 full_name: userData.name,
                                 work_date: todayDB,
@@ -216,17 +221,18 @@
                     }
                 } else { // type === 'out'
                     if (existing) {
-                        // มี record แล้ว -> อัปเดต time_out
+                        // Update
                         const { error: upError } = await client
                             .from('TimeStampPlus')
                             .update({ time_out: timeDB })
                             .eq('id', existing.id);
                         error = upError;
                     } else {
-                        // ยังไม่มี (ลงออกก่อนเข้า?) -> Insert ใหม่
+                        // Insert (กรณีลงออกก่อนเข้า ใส่ ID และตัด verified ออก)
                         const { error: insError } = await client
                             .from('TimeStampPlus')
                             .insert([{
+                                id: newID, // <-- ใส่ ID ที่สร้างเอง
                                 personnel_id: userData.personnel_id,
                                 full_name: userData.name,
                                 work_date: todayDB,
@@ -239,7 +245,7 @@
                 if (error) throw error;
 
                 showToast("บันทึกสำเร็จ!");
-                loadTodayRecord(); // รีเฟรชข้อมูล
+                loadTodayRecord();
 
             } catch (err) {
                 console.error(err);
@@ -252,7 +258,6 @@
             window.location.href = 'login.html';
         }
 
-        // เริ่มทำงาน
         init();
     </script>
 </body>
