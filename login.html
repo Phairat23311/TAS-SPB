@@ -6,28 +6,26 @@
     <title>เข้าสู่ระบบ - TAS-SPB</title>
     
     <style>
-        /* สไตล์พื้นฐาน (ไม่ใช้ CDN เพื่อให้ทำงานออฟไลน์ได้ชัวร์ๆ) */
-        body { font-family: sans-serif; background-color: #f3f4f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: white; padding: 2rem; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; max-width: 350px; }
-        h2 { text-align: center; color: #1f2937; margin-bottom: 1.5rem; }
-        .form-group { margin-bottom: 1rem; }
-        label { display: block; color: #374151; margin-bottom: 0.5rem; font-weight: bold; }
-        input { width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem; box-sizing: border-box; }
-        button { width: 100%; padding: 0.75rem; background-color: #2563eb; color: white; border: none; border-radius: 0.5rem; font-weight: bold; cursor: pointer; margin-top: 1rem; }
+        body { font-family: 'Sarabun', sans-serif; background-color: #f3f4f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: white; padding: 2.5rem; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 380px; }
+        h2 { text-align: center; color: #1f2937; margin-bottom: 2rem; font-size: 1.8rem; }
+        .form-group { margin-bottom: 1.2rem; }
+        label { display: block; color: #374151; margin-bottom: 0.5rem; font-weight: 600; }
+        input { width: 100%; padding: 0.8rem; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box; font-size: 1rem; transition: border-color 0.3s; }
+        input:focus { outline: none; border-color: #2563eb; ring: 2px solid #93c5fd; }
+        button { width: 100%; padding: 0.9rem; background-color: #2563eb; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 1rem; cursor: pointer; margin-top: 1.5rem; transition: background 0.3s; }
         button:hover { background-color: #1d4ed8; }
         button:disabled { background-color: #9ca3af; cursor: not-allowed; }
-        #msg { margin-top: 1rem; text-align: center; font-size: 0.9rem; color: red; min-height: 1.2em; }
         .status-check { font-size: 0.8rem; text-align: center; color: #6b7280; margin-bottom: 1rem; }
     </style>
 
-    <script src="supabase.js"></script> 
-</head>
+    <script src="supabase.js"></script>
+    <script src="sweetalert2.js"></script> </head>
 <body>
 
     <div class="card">
-        <h2>เข้าสู่ระบบ</h2>
-        
-        <div id="libStatus" class="status-check">กำลังตรวจสอบไฟล์ระบบ...</div>
+        <h2>🔐 เข้าสู่ระบบ</h2>
+        <div id="libStatus" class="status-check">กำลังตรวจสอบระบบ...</div>
 
         <form id="loginForm">
             <div class="form-group">
@@ -40,39 +38,31 @@
             </div>
             <button type="submit" id="btnSubmit">เข้าสู่ระบบ</button>
         </form>
-        <div id="msg"></div>
     </div>
 
     <script>
-        const statusDiv = document.getElementById('msg');
         const libStatus = document.getElementById('libStatus');
         const btn = document.getElementById('btnSubmit');
 
-        // --- ส่วนการตั้งค่า (Config) ---
+        // Config
         const SUPABASE_URL = "https://tdcmbskmlrwhbjrjyjkk.supabase.co";
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkY21ic2ttbHJ3aGJqcmp5amtrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI2MTY4NTYsImV4cCI6MjA3ODE5Mjg1Nn0.FeYe75J8X_2LoQgG_JWyPNCKcuCL_otsmSW0s5bijAg";
 
-        // ตัวแปรสำหรับเก็บ Client (ใช้ชื่อ client เพื่อไม่ให้ชนกับชื่อ Library)
         let client = null;
 
-        // 2. ตรวจสอบว่าโหลดไฟล์ supabase.js สำเร็จไหม
-        if (typeof window.supabase === 'undefined') {
-            libStatus.innerText = "❌ ไม่พบไฟล์ supabase.js (กรุณาวางไฟล์ไว้ในโฟลเดอร์เดียวกัน)";
-            libStatus.style.color = "red";
+        // เช็ค Library
+        if (typeof window.supabase === 'undefined' || typeof Swal === 'undefined') {
+            libStatus.innerHTML = "<span style='color:red'>❌ ไม่พบไฟล์ supabase.js หรือ sweetalert2.js</span>";
             btn.disabled = true;
         } else {
-            libStatus.innerText = "✅ ระบบพร้อมใช้งาน";
-            libStatus.style.color = "green";
-            
+            libStatus.innerHTML = "<span style='color:green'>✅ ระบบพร้อมใช้งาน</span>";
             try {
-                // สร้างการเชื่อมต่อ (ใช้ window.supabase)
                 client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
             } catch (err) {
-                statusDiv.innerText = "Config Error: " + err.message;
+                Swal.fire('Error', 'Config Error: ' + err.message, 'error');
             }
         }
 
-        // 3. ฟังก์ชันล็อกอิน
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             if (!client) return;
@@ -82,10 +72,8 @@
 
             btn.disabled = true;
             btn.innerText = "กำลังตรวจสอบ...";
-            statusDiv.innerText = "";
 
             try {
-                // ดึงข้อมูลพนักงาน
                 const { data, error } = await client
                     .from('Personnel')
                     .select('*')
@@ -95,25 +83,38 @@
                 if (error) throw error;
                 if (!data) throw new Error("ไม่พบข้อมูลพนักงานนี้");
 
-                // ตรวจสอบรหัสผ่าน (รองรับทั้งตัวพิมพ์เล็ก/ใหญ่ของชื่อคอลัมน์)
                 const dbPass = data.Password || data.password || "";
                 if (String(dbPass) !== String(pass)) {
                     throw new Error("รหัสผ่านไม่ถูกต้อง");
                 }
 
-                // สำเร็จ -> บันทึกและเปลี่ยนหน้า
+                // 🔥 แสดง Popup สำเร็จสวยๆ
+                await Swal.fire({
+                    icon: 'success',
+                    title: 'ยินดีต้อนรับ',
+                    text: `คุณ ${data.name || user}`,
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+
                 localStorage.setItem('tas_user', JSON.stringify(data));
                 window.location.href = 'attendance.html';
 
             } catch (err) {
                 console.error(err);
                 let text = "เข้าสู่ระบบไม่สำเร็จ";
-                
                 if (err.code === 'PGRST116') text = "ไม่พบรหัสพนักงานนี้";
-                else if (err.message.includes('fetch')) text = "เชื่อมต่อเน็ตไม่ได้";
+                else if (err.message.includes('fetch')) text = "เชื่อมต่ออินเทอร์เน็ตไม่ได้";
                 else text = err.message;
 
-                statusDiv.innerText = "❌ " + text;
+                // 🔥 แสดง Popup Error สวยๆ
+                Swal.fire({
+                    icon: 'error',
+                    title: 'ข้อผิดพลาด',
+                    text: text,
+                    confirmButtonText: 'ตกลง'
+                });
+
                 btn.disabled = false;
                 btn.innerText = "เข้าสู่ระบบ";
             }
