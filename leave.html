@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>บันทึกการลา - TAS-SPB</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <style>
+        body { font-family: 'Sarabun', sans-serif; background: #fff1f2; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .card { background: white; padding: 20px; border-radius: 15px; width: 100%; max-width: 500px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .back-btn { display: inline-block; margin-bottom: 20px; text-decoration: none; color: #be123c; font-weight: bold; }
+        h2 { margin-top: 0; color: #be123c; }
+        
+        label { display: block; margin-top: 15px; font-weight: bold; color: #4b5563; }
+        input, select, textarea { width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: #be123c; color: white; border: none; border-radius: 8px; margin-top: 20px; cursor: pointer; font-weight: bold; }
+    </style>
+    <script src="sweetalert2.js"></script>
+</head>
+<body>
+    <a href="menu.html" class="back-btn">⬅ กลับเมนูหลัก</a>
+    
+    <div class="card">
+        <h2>📝 แบบฟอร์มขอลาหยุด</h2>
+        <form id="leaveForm">
+            <label>ประเภทการลา</label>
+            <select id="leaveType">
+                <option value="ป่วย">ลาป่วย</option>
+                <option value="กิจ">ลากิจ</option>
+                <option value="พักร้อน">ลาพักร้อน</option>
+            </select>
+
+            <label>วันที่ลา</label>
+            <input type="date" id="leaveDate" required>
+
+            <label>จำนวนวัน</label>
+            <input type="number" id="leaveDays" value="1" min="1">
+
+            <label>เหตุผล</label>
+            <textarea id="leaveReason" rows="3" placeholder="ระบุเหตุผล..."></textarea>
+
+            <button type="submit">ส่งใบลา</button>
+        </form>
+    </div>
+
+    <script>
+        // Check Login & Level 1
+        const user = JSON.parse(localStorage.getItem('tas_user') || '{}');
+        if (String(user.level) !== '1') {
+            alert('Access Denied'); window.location.href = 'login.html';
+        }
+
+        document.getElementById('leaveForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            // ตรงนี้ต้องเขียนโค้ดบันทึกลง Supabase (ตาราง Leave หรือที่เตรียมไว้)
+            Swal.fire('บันทึกสำเร็จ', 'ส่งใบลาเรียบร้อยแล้ว (Demo)', 'success')
+            .then(() => window.location.href = 'menu.html');
+        });
+    </script>
+</body>
+</html>
