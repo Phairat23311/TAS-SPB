@@ -38,11 +38,13 @@
         .modal-form { display: grid; gap: 15px; text-align: left; }
         .readonly-input { background-color: #f1f5f9; color: #64748b; cursor: not-allowed; border-color: #e2e8f0; }
         
-        /* Radio Button Group */
-        .radio-group { display: flex; gap: 20px; align-items: center; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0; }
-        .radio-item { display: flex; align-items: center; gap: 5px; cursor: pointer; }
-        .radio-item input { width: 18px; height: 18px; cursor: pointer; }
-        .radio-item label { cursor: pointer; font-weight: bold; }
+        /* 🔥 Custom Buttons for Modal */
+        .modal-actions { display: flex; gap: 15px; margin-top: 20px; }
+        .btn-action { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: bold; font-size: 1.1rem; cursor: pointer; transition: 0.2s; color: white; display: flex; justify-content: center; align-items: center; gap: 8px; }
+        .btn-in { background-color: #10b981; box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3); }
+        .btn-in:hover { background-color: #059669; transform: translateY(-2px); }
+        .btn-out { background-color: #ef4444; box-shadow: 0 4px 6px rgba(239, 68, 68, 0.3); }
+        .btn-out:hover { background-color: #dc2626; transform: translateY(-2px); }
     </style>
 
     <script src="supabase.js"></script>
@@ -162,10 +164,10 @@
             }
         }
 
-        // --- 🔥 เพิ่มข้อมูลแบบใหม่ (Search + Single Time Input) ---
+        // --- 🔥 เพิ่มข้อมูลแบบใหม่ (2 ปุ่ม แยกเข้า/ออก) ---
         async function openAddModal() {
             const curDate = document.getElementById('filterDate').value;
-            const curTime = getCurrentTime();
+            const curTime = getCurrentTime(); 
             
             await Swal.fire({
                 title: 'เพิ่มข้อมูลลงเวลา (Manual)',
@@ -174,7 +176,7 @@
                     <div class="modal-form">
                         <div class="search-container">
                             <label style="font-weight:bold; color:#3b82f6;">🔍 ค้นหาพนักงาน (พิมพ์ชื่อ):</label>
-                            <input id="search-box" class="swal2-input" placeholder="พิมพ์ชื่อ (เช่น 'ส')..." autocomplete="off">
+                            <input id="search-box" class="swal2-input" placeholder="เช่น 'ส'..." autocomplete="off">
                             <div id="search-results" class="search-results"></div>
                         </div>
 
@@ -191,37 +193,32 @@
                         
                         <hr style="border:0; border-top:1px dashed #ddd; width:100%;">
 
-                        <label>วันที่:</label>
-                        <input type="date" id="swal-date" class="swal2-input" value="${curDate}">
-                        
-                        <div style="display:flex; gap:10px; align-items:center;">
-                             <div style="flex:1">
-                                <label>ระบุเวลา:</label>
-                                <input type="time" id="swal-time" class="swal2-input" value="${curTime}">
+                        <div style="display:flex; gap:20px; align-items:flex-end;">
+                            <div style="flex:1">
+                                <label>วันที่:</label>
+                                <input type="date" id="swal-date" class="swal2-input" value="${curDate}">
                             </div>
                             <div style="flex:1">
-                                <label>ประเภท:</label>
-                                <div class="radio-group">
-                                    <div class="radio-item" onclick="document.getElementById('type-in').click()">
-                                        <input type="radio" id="type-in" name="time-type" value="in" checked>
-                                        <label for="type-in" style="color:green;">เข้างาน</label>
-                                    </div>
-                                    <div class="radio-item" onclick="document.getElementById('type-out').click()">
-                                        <input type="radio" id="type-out" name="time-type" value="out">
-                                        <label for="type-out" style="color:red;">เลิกงาน</label>
-                                    </div>
-                                </div>
+                                <label>เวลา (สำหรับบันทึก):</label>
+                                <input type="time" id="swal-time" class="swal2-input" value="${curTime}" style="font-weight:bold; font-size:1.2rem;">
                             </div>
+                        </div>
+
+                        <div class="modal-actions">
+                            <button class="btn-action btn-in" onclick="saveManualData('in')">
+                                <i class="fas fa-sign-in-alt"></i> บันทึกเวลาเข้า
+                            </button>
+                            <button class="btn-action btn-out" onclick="saveManualData('out')">
+                                <i class="fas fa-sign-out-alt"></i> บันทึกเวลาออก
+                            </button>
                         </div>
                     </div>
                 `,
-                focusConfirm: false,
-                showCancelButton: true,
-                confirmButtonText: '💾 บันทึก',
-                cancelButtonText: 'ยกเลิก',
+                showConfirmButton: false, // ❌ ซ่อนปุ่ม OK เดิม
+                showCloseButton: true,
                 
-                // Logic ค้นหา
                 didOpen: () => {
+                    // Logic ค้นหาเหมือนเดิม
                     const searchBox = Swal.getPopup().querySelector('#search-box');
                     const resultsBox = Swal.getPopup().querySelector('#search-results');
                     const pidInput = Swal.getPopup().querySelector('#swal-pid');
@@ -229,16 +226,10 @@
 
                     searchBox.addEventListener('input', async (e) => {
                         const keyword = e.target.value.trim();
-                        if (keyword.length < 1) { 
-                            resultsBox.style.display = 'none'; 
-                            return; 
-                        }
+                        if (keyword.length < 1) { resultsBox.style.display = 'none'; return; }
 
-                        const { data } = await sbClient
-                            .from('Personnel')
-                            .select('personnel_id, name')
-                            .ilike('name', `%${keyword}%`)
-                            .limit(5);
+                        const { data } = await sbClient.from('Personnel')
+                            .select('personnel_id, name').ilike('name', `%${keyword}%`).limit(5);
 
                         resultsBox.innerHTML = '';
                         if (data && data.length > 0) {
@@ -255,62 +246,56 @@
                                 };
                                 resultsBox.appendChild(item);
                             });
-                        } else {
-                            resultsBox.style.display = 'none';
-                        }
+                        } else { resultsBox.style.display = 'none'; }
                     });
-                },
-                preConfirm: () => {
-                    const pid = document.getElementById('swal-pid').value;
-                    const date = document.getElementById('swal-date').value;
-                    const timeVal = document.getElementById('swal-time').value;
-                    const typeVal = document.querySelector('input[name="time-type"]:checked').value;
-
-                    if (!pid) return Swal.showValidationMessage('⚠️ กรุณาเลือกพนักงาน');
-                    if (!date) return Swal.showValidationMessage('⚠️ กรุณาระบุวันที่');
-                    if (!timeVal) return Swal.showValidationMessage('⚠️ กรุณาระบุเวลา');
-                    
-                    return {
-                        pid: pid,
-                        name: document.getElementById('swal-name').value,
-                        date: date,
-                        time: timeVal,
-                        type: typeVal
-                    }
-                }
-            }).then(async (result) => {
-                if (result.isConfirmed) {
-                    await saveData(result.value);
                 }
             });
         }
 
-        // ฟังก์ชันบันทึก (แปลง เข้า/ออก ให้ถูกช่อง)
-        async function saveData(f) {
+        // 🔥 ฟังก์ชันบันทึกที่ถูกเรียกจากปุ่มแยก
+        async function saveManualData(type) {
+            const pid = document.getElementById('swal-pid').value;
+            const name = document.getElementById('swal-name').value;
+            const date = document.getElementById('swal-date').value;
+            const time = document.getElementById('swal-time').value;
+
+            if (!pid) { Swal.showValidationMessage('กรุณาเลือกพนักงาน'); return; }
+            if (!date || !time) { Swal.showValidationMessage('กรุณาระบุวันและเวลา'); return; }
+
             try {
+                // เตรียมข้อมูล
                 const newID = generateLongID();
-                
-                // กำหนดค่า time_in / time_out ตามที่เลือก
-                const timeIn = (f.type === 'in') ? f.time : null;
-                const timeOut = (f.type === 'out') ? f.time : null;
+                const timeIn = (type === 'in') ? time : null;
+                const timeOut = (type === 'out') ? time : null;
 
                 const { error } = await sbClient.from(TAS_CONFIG.TABLE_SOURCE).insert([{
                     id: newID,
-                    personnel_id: f.pid,
-                    full_name: f.name,
-                    work_date: f.date,
+                    personnel_id: pid,
+                    full_name: name,
+                    work_date: date,
                     time_in: timeIn,
                     time_out: timeOut
                 }]);
 
                 if (error) throw error;
-                Swal.fire('สำเร็จ', `บันทึกเวลา ${f.type === 'in' ? 'เข้า' : 'ออก'} เรียบร้อย`, 'success');
+
+                // ปิด Modal และแจ้งเตือน
+                Swal.close();
+                Swal.fire({
+                    icon: 'success',
+                    title: 'บันทึกสำเร็จ!',
+                    text: `ลงเวลา ${type==='in'?'เข้า':'ออก'} เรียบร้อย`,
+                    timer: 1500,
+                    showConfirmButton: false
+                });
                 loadData();
+
             } catch (err) {
                 Swal.fire('Error', err.message, 'error');
             }
         }
 
+        // --- แก้ไขข้อมูล (Edit) ---
         async function openEditModal(id, pid, name, tIn, tOut) {
             tIn = (tIn === '-') ? '' : tIn;
             tOut = (tOut === '-') ? '' : tOut;
