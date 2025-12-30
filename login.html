@@ -18,7 +18,8 @@
 
     <script src="supabase.js"></script>
     <script src="sweetalert2.js"></script>
-    <script src="config.js"></script> </head>
+    <script src="config.js"></script>
+</head>
 <body>
     <div class="card">
         <span class="app-logo">🏫</span>
@@ -42,29 +43,64 @@
             btn.innerText = "กำลังตรวจสอบ...";
 
             try {
-                // ใช้ sbClient จาก config.js ได้เลย
-                const { data, error } = await sbClient.from(TAS_CONFIG.TABLE_USER)
-                    .select('*').eq('personnel_id', user).single();
-
-                if (error || !data) throw new Error("ไม่พบข้อมูลผู้ใช้");
-
-                const dbPass = data.Password || data.password || "";
-                if (String(dbPass) !== String(pass)) throw new Error("รหัสผ่านไม่ถูกต้อง");
-
-                if (String(data.level) !== '1') throw new Error("สิทธิ์การใช้งานของคุณไม่ถูกต้อง (เฉพาะ Level 1)");
-
-                localStorage.setItem('tas_user', JSON.stringify(data));
+                // 1. ลองเชื่อมต่อ
+                console.log("กำลังเชื่อมต่อตาราง:", TAS_CONFIG.TABLE_USER);
                 
+                const { data, error } = await sbClient
+                    .from(TAS_CONFIG.TABLE_USER)
+                    .select('*')
+                    .eq('personnel_id', user)
+                    .single();
+
+                // 2. วิเคราะห์ Error แบบละเอียด
+                if (error) {
+                    console.error("Supabase Error:", error);
+                    
+                    if (error.code === 'PGRST116') {
+                        // Error นี้แปลว่า Syntax ถูก แต่หาไม่เจอ (0 rows)
+                        throw new Error(`ไม่พบรหัสพนักงาน "${user}" ในระบบ\n(กรุณาเช็คว่า Insert ข้อมูลหรือยัง)`);
+                    } 
+                    
+                    if (error.code === '42P01') {
+                        // Error นี้แปลว่าหา Table ไม่เจอ
+                        throw new Error(`ไม่พบตารางชื่อ "${TAS_CONFIG.TABLE_USER}"\n(ชื่อตารางตัวเล็ก/ใหญ่ ไม่ตรงกับ DB)`);
+                    }
+
+                    throw new Error("DB Error: " + error.message);
+                }
+
+                if (!data) throw new Error("ข้อมูลผู้ใช้เป็นค่าว่าง (NULL)");
+
+                // 3. เช็ค Password (รองรับทั้ง P ตัวใหญ่และเล็ก)
+                console.log("ข้อมูลที่ได้จาก DB:", data);
+                const dbPass = data.Password || data.password || "";
+                
+                if (String(dbPass) !== String(pass)) {
+                    throw new Error(`รหัสผ่านไม่ถูกต้อง`);
+                }
+
+                if (String(data.level) !== '1') {
+                    throw new Error("สิทธิ์การใช้งานของคุณไม่ถูกต้อง (เฉพาะ Level 1)");
+                }
+
+                // สำเร็จ
+                localStorage.setItem('tas_user', JSON.stringify(data));
                 await Swal.fire({
-                    icon: 'success', title: 'ยินดีต้อนรับ',
-                    text: `สวัสดีคุณ ${data.name}`,
+                    icon: 'success', title: 'สำเร็จ!',
+                    text: `ยินดีต้อนรับ ${data.name}`,
                     timer: 1000, showConfirmButton: false
                 });
 
                 window.location.href = 'menu.html';
 
             } catch (err) {
-                Swal.fire('Login Failed', err.message, 'error');
+                // แจ้งเตือนสาเหตุที่แท้จริง
+                Swal.fire({
+                    icon: 'error',
+                    title: 'เข้าสู่ระบบไม่ได้',
+                    text: err.message,
+                    footer: '<span style="color:red">ลองกด F12 ดู Console เพื่อดูรายละเอียด</span>'
+                });
                 btn.disabled = false;
                 btn.innerText = "เข้าสู่ระบบ";
             }
