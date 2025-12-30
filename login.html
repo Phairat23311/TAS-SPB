@@ -3,49 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>เข้าสู่ระบบ - TAS-SPB</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Login Debug Mode</title>
+    <style>
+        body { font-family: sans-serif; background-color: #f0f0f0; display: flex; justify-content: center; height: 100vh; align-items: center; }
+        .box { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 300px; }
+        input { width: 90%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; }
+        button { width: 100%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:disabled { background: #ccc; }
+        #status { margin-top: 10px; font-size: 12px; color: red; word-wrap: break-word; }
+    </style>
+    
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
-    <style> body { font-family: 'Sarabun', sans-serif; } </style>
 </head>
-<body class="bg-blue-50 h-screen flex items-center justify-center">
+<body>
 
-    <div class="bg-white p-8 rounded-lg shadow-xl max-w-sm w-full">
-        <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">เข้าสู่ระบบ</h2>
+    <div class="box">
+        <h2 style="text-align:center;">Login (Debug)</h2>
+        <div id="libStatus" style="color:orange; font-size:12px; text-align:center;">กำลังโหลด Library...</div>
         
-        <form id="loginForm" class="space-y-4">
-            <div>
-                <label class="block text-gray-700 text-sm font-bold mb-2">รหัสพนักงาน (User ID)</label>
-                <input type="text" id="username" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="กรอกรหัสพนักงาน" required>
-            </div>
-            <div>
-                <label class="block text-gray-700 text-sm font-bold mb-2">รหัสผ่าน (Password)</label>
-                <input type="password" id="password" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="กรอกรหัสผ่าน" required>
-            </div>
-            
-            <button type="submit" id="btnSubmit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-300">
-                เข้าสู่ระบบ
-            </button>
+        <form id="loginForm">
+            <input type="text" id="username" placeholder="รหัสพนักงาน" required>
+            <input type="password" id="password" placeholder="รหัสผ่าน" required>
+            <button type="submit" id="btnSubmit">เข้าสู่ระบบ</button>
         </form>
-        
-        <div id="debugArea" class="mt-4 p-2 bg-red-100 text-red-700 text-xs rounded hidden"></div>
+
+        <div id="status"></div>
     </div>
 
     <script>
-        // --- การตั้งค่า Supabase ---
-        // (ค่านี้ดึงมาจาก secure_config.py ของคุณ)
+        const statusDiv = document.getElementById('status');
+        const libStatus = document.getElementById('libStatus');
+
+        // 1. เช็คว่า Supabase โหลดติดไหม
+        if (typeof window.supabase === 'undefined') {
+            libStatus.innerText = "❌ ผิดพลาด: โหลด Supabase ไม่สำเร็จ (ตรวจสอบอินเทอร์เน็ต)";
+            libStatus.style.color = "red";
+            document.getElementById('btnSubmit').disabled = true;
+        } else {
+            libStatus.innerText = "✅ Library พร้อมใช้งาน";
+            libStatus.style.color = "green";
+        }
+
+        // Config
         const SUPABASE_URL = "https://tdcmbskmlrwhbjrjyjkk.supabase.co";
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkY21ic2ttbHJ3aGJqcmp5amtrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI2MTY4NTYsImV4cCI6MjA3ODE5Mjg1Nn0.FeYe75J8X_2LoQgG_JWyPNCKcuCL_otsmSW0s5bijAg";
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-        const debugArea = document.getElementById('debugArea');
-
-        function showDebug(msg) {
-            console.error(msg);
-            debugArea.innerText = "Debug: " + JSON.stringify(msg);
-            debugArea.classList.remove('hidden');
+        
+        let supabase;
+        try {
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        } catch (e) {
+            statusDiv.innerText = "Config Error: " + e.message;
         }
 
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -54,70 +61,56 @@
             const user = document.getElementById('username').value.trim();
             const pass = document.getElementById('password').value;
 
+            statusDiv.innerText = "⏳ กำลังเชื่อมต่อฐานข้อมูล...";
             btn.disabled = true;
-            btn.innerText = "กำลังตรวจสอบ...";
-            debugArea.classList.add('hidden');
 
             try {
-                // 1. ลองค้นหา User
-                console.log("Searching for:", user);
+                // 2. ดึงข้อมูล (ใช้ select * เพื่อดูโครงสร้างจริง)
                 const { data, error } = await supabase
-                    .from('Personnel') // ตรวจสอบชื่อตาราง (ตัวพิมพ์เล็กใหญ่ต้องตรงเป๊ะ)
-                    .select('*')       // ดึงมาทุกคอลัมน์เพื่อกันพลาดเรื่องชื่อ
+                    .from('Personnel')
+                    .select('*') 
                     .eq('personnel_id', user)
-                    .single(); // ดึงรายการเดียว
+                    .single();
 
                 if (error) {
-                    // ถ้า Error เป็น PGRST116 แปลว่าหาไม่เจอ
-                    if (error.code === 'PGRST116') {
-                        throw new Error("ไม่พบรหัสพนักงานนี้ในระบบ");
-                    }
-                    // Error อื่นๆ (เช่น RLS permission denied)
-                    throw new Error("Database Error: " + error.message);
+                    throw error; // ส่งไปที่ catch
                 }
 
                 if (!data) {
-                    throw new Error("ไม่พบข้อมูลผู้ใช้งาน");
+                    throw new Error("ไม่พบข้อมูล User นี้ในระบบ");
                 }
 
-                console.log("User found:", data);
+                // แสดงข้อมูลที่ดึงได้ใน Console (กด F12 ดูได้)
+                console.log("Data fetched:", data);
 
-                // 2. ตรวจสอบรหัสผ่าน (รองรับทั้ง Password ตัวใหญ่และ password ตัวเล็ก)
-                // ดึงค่าจาก DB โดยไม่สนชื่อคอลัมน์
-                const dbPass = data.Password || data.password || ""; 
-
-                // เปรียบเทียบเป็น String ทั้งคู่เพื่อความชัวร์
-                if (String(dbPass) !== String(pass)) {
-                    throw new Error("รหัสผ่านไม่ถูกต้อง");
-                }
-
-                // 3. ผ่านการตรวจสอบ -> บันทึกและไปหน้าถัดไป
-                const userData = {
-                    personnel_id: data.personnel_id,
-                    name: data.name,
-                    level: data.level
-                };
-                localStorage.setItem('tas_user', JSON.stringify(userData));
+                // 3. ตรวจสอบรหัสผ่าน (ลองเทียบทุกความเป็นไปได้ของชื่อคอลัมน์)
+                const dbPass = data.Password || data.password || data.PASSWORD || ""; 
                 
-                Swal.fire({
-                    icon: 'success',
-                    title: 'ยินดีต้อนรับ',
-                    text: 'เข้าสู่ระบบสำเร็จ',
-                    timer: 1500,
-                    showConfirmButton: false
-                }).then(() => {
-                    window.location.href = 'attendance.html';
-                });
+                if (String(dbPass) !== String(pass)) {
+                    throw new Error(`รหัสผ่านผิด! (DB: ${dbPass} vs Input: ${pass})`);
+                }
+
+                // สำเร็จ
+                alert(`✅ เข้าสู่ระบบสำเร็จ!\nชื่อ: ${data.name}\nLevel: ${data.level}`);
+                
+                // บันทึกและเปลี่ยนหน้า
+                localStorage.setItem('tas_user', JSON.stringify(data));
+                window.location.href = 'attendance.html';
 
             } catch (err) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'เข้าสู่ระบบไม่สำเร็จ',
-                    text: err.message
-                });
-                showDebug(err.message); // แสดง Error ที่หน้าจอเพื่อช่วยแก้ปัญหา
+                console.error(err);
+                // แสดง Error ออกมาตรงๆ
+                alert("❌ เกิดข้อผิดพลาด:\n" + (err.message || JSON.stringify(err)));
+                statusDiv.innerText = "Error: " + err.message;
+                
+                // คำแนะนำเพิ่มเติมกรณี Error ยอดฮิต
+                if (err.code === 'PGRST116') {
+                    statusDiv.innerText += "\n(หา ID ไม่เจอ)";
+                } else if (err.message && err.message.includes('fetch')) {
+                    statusDiv.innerText += "\n(ปัญหาการเชื่อมต่อเน็ต)";
+                }
+            } finally {
                 btn.disabled = false;
-                btn.innerText = "เข้าสู่ระบบ";
             }
         });
     </script>
