@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>รายงาน - TAS-SPB</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <style>
+        body { font-family: 'Sarabun', sans-serif; background: #ecfdf5; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 15px; }
+        .back-btn { text-decoration: none; color: #047857; font-weight: bold; display: block; margin-bottom: 15px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { text-align: left; padding: 10px; border-bottom: 1px solid #e5e7eb; }
+        th { background: #f9fafb; color: #374151; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="menu.html" class="back-btn">⬅ กลับเมนูหลัก</a>
+        <h2 style="color: #047857;">📊 ประวัติการลงเวลา</h2>
+        <p>แสดงข้อมูล 5 รายการล่าสุด</p>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>วันที่</th>
+                    <th>เข้า</th>
+                    <th>ออก</th>
+                </tr>
+            </thead>
+            <tbody id="reportTable">
+                <tr><td colspan="3" style="text-align:center;">กำลังโหลด...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script src="supabase.js"></script>
+    <script>
+        // Config Supabase (ใส่ Key ใหม่ด้วย)
+        const SUPABASE_URL = "https://tdcmbskmlrwhbjrjyjkk.supabase.co";
+        const SUPABASE_KEY = "ใส่_KEY_ใหม่ของคุณที่นี่"; 
+        
+        const user = JSON.parse(localStorage.getItem('tas_user') || '{}');
+        if (String(user.level) !== '1') window.location.href = 'login.html';
+
+        async function loadReport() {
+            const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            // ดึงข้อมูล 5 วันล่าสุด
+            const { data, error } = await client.from('TimeStampPlus')
+                .select('work_date, time_in, time_out')
+                .eq('personnel_id', user.personnel_id)
+                .order('work_date', { ascending: false })
+                .limit(5);
+
+            const tbody = document.getElementById('reportTable');
+            tbody.innerHTML = '';
+
+            if (data && data.length > 0) {
+                data.forEach(row => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${row.work_date}</td>
+                            <td>${row.time_in || '-'}</td>
+                            <td>${row.time_out || '-'}</td>
+                        </tr>
+                    `;
+                });
+            } else {
+                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">ไม่พบข้อมูล</td></tr>';
+            }
+        }
+        loadReport();
+    </script>
+</body>
+</html>
