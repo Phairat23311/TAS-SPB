@@ -7,8 +7,12 @@ const TAS_CONFIG = {
     SUPABASE_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkY21ic2ttbHJ3aGJqcmp5amtrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI2MTY4NTYsImV4cCI6MjA3ODE5Mjg1Nn0.FeYe75J8X_2LoQgG_JWyPNCKcuCL_otsmSW0s5bijAg", 
     
     // ชื่อตาราง (ต้องตรงกับใน DB เป๊ะๆ)
-    TABLE_USER: "Personnel",      // ตัว P ใหญ่ ตาม SQL ที่ส่งมา
-    TABLE_TIME: "TimeStampPlus"   // ตารางลงเวลา
+
+    TABLE_USER: "Personnel",
+    TABLE_TIME: "TimeStampPlus",  // ต้นทาง (จากเว็บ)
+    TABLE_TARGET: "TimeStamp",    // ปลายทาง (รวมแล้ว)
+    TABLE_SETTINGS: "Settings"
+
 };
 
 // ==========================================
