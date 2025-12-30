@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>ประมวลผลเวลา - TAS-SPB</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <style>
+        body { font-family: 'Sarabun', sans-serif; background: #f8fafc; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .container { width: 100%; max-width: 600px; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); text-align: center; }
+        .btn-process { background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; border: none; padding: 15px 30px; border-radius: 30px; font-size: 1.2rem; font-weight: bold; cursor: pointer; margin: 20px 0; box-shadow: 0 4px 6px rgba(79, 70, 229, 0.3); transition: transform 0.2s; }
+        .btn-process:active { transform: scale(0.95); }
+        .btn-process:disabled { background: #cbd5e1; cursor: not-allowed; box-shadow: none; }
+        .log-box { text-align: left; background: #1e293b; color: #334155; border-radius: 10px; padding: 15px; height: 200px; overflow-y: auto; font-family: monospace; font-size: 0.9rem; border: 1px solid #e2e8f0; color: #10b981; }
+        .back-btn { text-decoration: none; color: #64748b; font-weight: bold; display: inline-block; margin-bottom: 20px; }
+    </style>
+    
+    <script src="supabase.js"></script>
+    <script src="sweetalert2.js"></script>
+    <script src="config.js"></script>
+</head>
+<body>
+    <a href="menu.html" class="back-btn">⬅ กลับเมนูหลัก</a>
+
+    <div class="container">
+        <h2>🔄 ประมวลผลและรวมข้อมูล</h2>
+        <p>ดึงข้อมูลจาก <b>Web</b> และ <b>Data URL</b><br>คัดเลือกเวลาที่ดีที่สุด แล้วบันทึกลง <b>TimeStamp</b></p>
+        
+        <button id="btnStart" class="btn-process" onclick="startProcess()">🚀 เริ่มการประมวลผล</button>
+        
+        <div class="log-box" id="logDisplay">
+            > รอคำสั่งเริ่มทำงาน...
+        </div>
+    </div>
+
+    <script>
+        const user = checkAuth(); // เช็ค Level 1
+
+        function log(msg) {
+            const box = document.getElementById('logDisplay');
+            box.innerHTML += `<div>> ${msg}</div>`;
+            box.scrollTop = box.scrollHeight;
+        }
+
+        async function startProcess() {
+            const btn = document.getElementById('btnStart');
+            btn.disabled = true;
+            document.getElementById('logDisplay').innerHTML = '<div>> เริ่มต้นกระบวนการ...</div>';
+
+            try {
+                // 1. ดึง URL จาก Settings
+                log("กำลังค้นหา Data URL...");
+                const { data: settingData } = await sbClient.from(TAS_CONFIG.TABLE_SETTINGS)
+                    .select('value').eq('key', 'data_url').single();
+
+                let externalData = [];
+                if (settingData && settingData.value) {
+                    log(`พบ URL: ${settingData.value}`);
+                    log("กำลังดาวน์โหลดข้อมูลภายนอก...");
+                    try {
+                        const res = await fetch(settingData.value);
+                        if(res.ok) externalData = await res.json();
+                        else log("❌ โหลด External Data ไม่สำเร็จ (ข้าม)");
+                    } catch(e) { log("❌ เชื่อมต่อ URL ไม่ได้ (ข้าม)"); }
+                } else {
+                    log("⚠️ ไม่พบ key='data_url' หรือไม่มีค่า (ข้าม)");
+                }
+                log(`ข้อมูลภายนอก: ${externalData.length} รายการ`);
+
+                // 2. ดึงข้อมูลจาก TimeStampPlus (ใน Supabase)
+                log("กำลังดึงข้อมูลจาก TimeStampPlus...");
+                const { data: internalData, error: errInt } = await sbClient
+                    .from(TAS_CONFIG.TABLE_SOURCE) // TimeStampPlus
+                    .select('*');
+                
+                if (errInt) throw errInt;
+                log(`ข้อมูลภายใน: ${internalData.length} รายการ`);
+
+                // 3. รวมข้อมูล (Merge Logic)
+                log("กำลังประมวลผลเปรียบเทียบเวลา...");
+                const mergedMap = {};
+
+                const processRecord = (record) => {
+                    // ใช้ Personnel_ID + Work_Date เป็นตัวจับคู่
+                    const key = `${record.personnel_id}_${record.work_date}`;
+
+                    if (!mergedMap[key]) {
+                        // ถ้ายังไม่มี ให้สร้างใหม่
+                        mergedMap[key] = {
+                            id: generateID(), // สร้าง ID ใหม่
+                            personnel_id: record.personnel_id,
+                            full_name: record.full_name || record.name,
+                            work_date: record.work_date,
+                            time_in: record.time_in,
+                            time_out: record.time_out
+                            // verified: จะเป็น 0 โดยอัตโนมัติตาม Default ของ DB
+                        };
+                    } else {
+                        // ถ้ามีแล้ว ให้เทียบเวลา (Merge)
+                        const current = mergedMap[key];
+
+                        // 1. เวลาเข้า: เอาอันที่ "น้อยกว่า" (เช้ากว่า)
+                        if (record.time_in) {
+                            if (!current.time_in || record.time_in < current.time_in) {
+                                current.time_in = record.time_in;
+                            }
+                        }
+
+                        // 2. เวลาออก: เอาอันที่ "มากกว่า" (ดึกกว่า/เย็นกว่า)
+                        if (record.time_out) {
+                            if (!current.time_out || record.time_out > current.time_out) {
+                                current.time_out = record.time_out;
+                            }
+                        }
+                    }
+                };
+
+                // ประมวลผลทั้ง 2 แหล่ง
+                externalData.forEach(rec => processRecord(rec));
+                internalData.forEach(rec => processRecord(rec));
+
+                const finalData = Object.values(mergedMap);
+                log(`สรุปข้อมูลสุทธิ: ${finalData.length} รายการ`);
+
+                // 4. บันทึกลง TimeStamp (Upsert)
+                if (finalData.length > 0) {
+                    log("กำลังบันทึก/อัปเดตลงตาราง TimeStamp...");
+                    
+                    // 🔥 Upsert โดยอ้างอิง personnel_id + work_date
+                    const { error: errUpsert } = await sbClient
+                        .from(TAS_CONFIG.TABLE_TARGET) // TimeStamp
+                        .upsert(finalData, { onConflict: 'personnel_id, work_date' });
+
+                    if (errUpsert) throw errUpsert;
+                    
+                    log("✅ บันทึกข้อมูลสำเร็จ!");
+                    Swal.fire('สำเร็จ', `อัปเดตข้อมูล ${finalData.length} รายการเรียบร้อย`, 'success');
+                } else {
+                    log("ไม่มีข้อมูลใหม่ให้บันทึก");
+                }
+
+            } catch (err) {
+                console.error(err);
+                log(`❌ Error: ${err.message}`);
+                Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
