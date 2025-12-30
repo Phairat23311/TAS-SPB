@@ -27,8 +27,21 @@
         .btn-out:hover { background-color: #ea580c; }
         
         .status-area { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #e5e7eb; font-size: 0.9rem; color: #4b5563; }
-        .status-row { display: flex; justify-content: space-between; margin-top: 0.5rem; }
-        .time-val { font-weight: bold; color: #111827; font-family: monospace; }
+        .status-row { display: flex; justify-content: space-between; align-items: center; margin-top: 0.8rem; }
+        .time-val { font-weight: bold; color: #111827; font-family: monospace; font-size: 1.1rem; }
+        
+        /* 🔥 สไตล์ปุ่มแก้ไข */
+        .btn-edit {
+            background-color: #fff;
+            border: 1px solid #d1d5db;
+            color: #4b5563;
+            font-size: 0.8rem;
+            padding: 2px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        .btn-edit:hover { background-color: #f3f4f6; border-color: #9ca3af; }
         
         #msg { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 10px 20px; border-radius: 30px; opacity: 0; transition: opacity 0.5s; pointer-events: none; z-index: 100; }
     </style>
@@ -59,24 +72,32 @@
 
         <div class="status-area">
             <div>สถานะวันนี้ (จาก DB):</div>
+            
             <div class="status-row">
                 <span>เวลาเข้า:</span>
-                <span id="timeInDisplay" class="time-val">-</span>
+                <div>
+                    <span id="timeInDisplay" class="time-val">-</span>
+                    <button class="btn-edit" onclick="editTime('time_in')">✏️ แก้ไข</button>
+                </div>
             </div>
+
             <div class="status-row">
                 <span>เวลาออก:</span>
-                <span id="timeOutDisplay" class="time-val">-</span>
+                <div>
+                    <span id="timeOutDisplay" class="time-val">-</span>
+                    <button class="btn-edit" onclick="editTime('time_out')">✏️ แก้ไข</button>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        // --- ตั้งค่า Supabase ---
         const SUPABASE_URL = "https://tdcmbskmlrwhbjrjyjkk.supabase.co";
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkY21ic2ttbHJ3aGJqcmp5amtrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI2MTY4NTYsImV4cCI6MjA3ODE5Mjg1Nn0.FeYe75J8X_2LoQgG_JWyPNCKcuCL_otsmSW0s5bijAg";
         
         let client = null;
         let userData = null;
+        let currentRecord = null; // เก็บข้อมูล Record ปัจจุบันไว้ใช้ตอนแก้ไข
 
         function showToast(text, isError = false) {
             const msg = document.getElementById('msg');
@@ -86,8 +107,6 @@
             setTimeout(() => { msg.style.opacity = '0'; }, 3000);
         }
 
-        // 🔥 ฟังก์ชันสร้าง ID เอง (ให้ไม่ซ้ำและยาวไม่เกิน 20 ตัว)
-        // รูปแบบ: YYYYMMDDHHmmss + สุ่ม 4 หลัก (รวม 18 หลัก)
         function generateID() {
             const now = new Date();
             const yy = String(now.getFullYear());
@@ -100,7 +119,6 @@
             return `${yy}${mm}${dd}${h}${m}${s}${r}`;
         }
 
-        // เริ่มต้นระบบ
         function init() {
             try {
                 const stored = localStorage.getItem('tas_user');
@@ -112,7 +130,7 @@
                 document.getElementById('userName').innerText = userData.name || userData.personnel_id;
 
                 if (typeof window.supabase === 'undefined') {
-                    alert("ไม่พบไฟล์ supabase.js ในโฟลเดอร์");
+                    alert("ไม่พบไฟล์ supabase.js");
                     return;
                 }
                 client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -126,7 +144,6 @@
             }
         }
 
-        // ฟังก์ชันช่วยจัดรูปแบบวันที่/เวลา
         function getDBFormatValues() {
             const now = new Date();
             const year = now.getFullYear();
@@ -138,14 +155,13 @@
             const seconds = String(now.getSeconds()).padStart(2, '0');
 
             return {
-                date: `${year}-${month}-${day}`, // ส่งเป็น Date (YYYY-MM-DD)
-                time: `${hours}:${minutes}:${seconds}`, // ส่งเป็น Time (HH:MM:SS)
+                date: `${year}-${month}-${day}`, 
+                time: `${hours}:${minutes}:${seconds}`, 
                 obj: now
             };
         }
 
         function startClock() {
-            // ทำงานทุก 1 วินาที
             setInterval(() => {
                 const val = getDBFormatValues();
                 document.getElementById('clockDisplay').innerText = val.time;
@@ -155,12 +171,10 @@
                 });
             }, 1000);
             
-            // รันครั้งแรกทันที
             const val = getDBFormatValues();
             document.getElementById('clockDisplay').innerText = val.time;
         }
 
-        // โหลดข้อมูลวันนี้
         async function loadTodayRecord() {
             if (!client) return;
             const val = getDBFormatValues();
@@ -175,22 +189,75 @@
                     .single();
 
                 if (data) {
+                    currentRecord = data; // เก็บข้อมูลลงตัวแปร Global
                     document.getElementById('timeInDisplay').innerText = data.time_in || "-";
                     document.getElementById('timeOutDisplay').innerText = data.time_out || "-";
                     return data;
                 } else {
+                    currentRecord = null;
                     document.getElementById('timeInDisplay').innerText = "-";
                     document.getElementById('timeOutDisplay').innerText = "-";
                     return null;
                 }
             } catch (err) {
-                // PGRST116 = หาไม่เจอ (ปกติถ้ายังไม่เคยลง)
                 if (err.code !== 'PGRST116') console.error(err);
+                currentRecord = null;
                 return null;
             }
         }
 
-        // บันทึกเวลา
+        // 🔥 ฟังก์ชันแก้ไขเวลา (Manual Edit)
+        async function editTime(field) {
+            if (!client) return;
+            
+            // ต้องมี Record ก่อนถึงจะแก้ไขได้
+            if (!currentRecord) {
+                alert("กรุณากดปุ่ม 'เข้างาน' หรือ 'เลิกงาน' เพื่อสร้างข้อมูลก่อน จึงจะแก้ไขได้");
+                return;
+            }
+
+            // ดึงค่าเดิมมาแสดงใน Prompt
+            const oldVal = field === 'time_in' ? currentRecord.time_in : currentRecord.time_out;
+            const defaultVal = oldVal || "08:00:00"; // ถ้าไม่มีค่าเดิม ให้แนะนำ 08:00:00
+
+            // ให้ผู้ใช้กรอก
+            const newVal = prompt(`แก้ไขเวลา ${field === 'time_in' ? 'เข้างาน' : 'ออกงาน'} (HH:MM:SS)`, defaultVal);
+
+            // ถ้ากด Cancel หรือไม่กรอกอะไร
+            if (newVal === null) return;
+            if (newVal.trim() === "") {
+                alert("กรุณากรอกเวลา");
+                return;
+            }
+
+            // ตรวจสอบ Format เวลาคร่าวๆ (HH:MM:SS)
+            const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/;
+            if (!timeRegex.test(newVal)) {
+                alert("รูปแบบเวลาไม่ถูกต้อง กรุณากรอกแบบ HH:MM:SS (เช่น 08:30:00)");
+                return;
+            }
+
+            try {
+                // สร้าง object ที่จะ update
+                const updateData = {};
+                updateData[field] = newVal; // เช่น { time_in: '09:00:00' }
+
+                const { error } = await client
+                    .from('TimeStampPlus')
+                    .update(updateData)
+                    .eq('id', currentRecord.id);
+
+                if (error) throw error;
+
+                showToast("แก้ไขเวลาสำเร็จ!");
+                loadTodayRecord(); // โหลดข้อมูลใหม่มาแสดง
+
+            } catch (err) {
+                console.error(err);
+                showToast("แก้ไขไม่สำเร็จ: " + err.message, true);
+            }
+        }
+
         async function recordTime(type) {
             if (!client) return;
             if (!confirm(`ยืนยันการลงเวลา ${type === 'in' ? 'เข้างาน' : 'เลิกงาน'} ?`)) return;
@@ -202,24 +269,20 @@
             try {
                 const existing = await loadTodayRecord();
                 let error = null;
-
-                // สร้าง ID ใหม่เตรียมไว้ (สำหรับ Insert)
                 const newID = generateID();
 
                 if (type === 'in') {
                     if (existing) {
-                        // มีข้อมูลแล้ว -> Update เฉพาะเวลาเข้า
                         const { error: upError } = await client
                             .from('TimeStampPlus')
                             .update({ time_in: timeDB })
                             .eq('id', existing.id);
                         error = upError;
                     } else {
-                        // ยังไม่มี -> Insert ใหม่ (ต้องใส่ id และลบ verified ออก)
                         const { error: insError } = await client
                             .from('TimeStampPlus')
                             .insert([{
-                                id: newID, // 🔥 ใส่ ID ที่สร้างเอง
+                                id: newID,
                                 personnel_id: userData.personnel_id,
                                 full_name: userData.name,
                                 work_date: todayDB,
@@ -229,18 +292,16 @@
                     }
                 } else { // type === 'out'
                     if (existing) {
-                        // มีข้อมูลแล้ว -> Update เฉพาะเวลาออก
                         const { error: upError } = await client
                             .from('TimeStampPlus')
                             .update({ time_out: timeDB })
                             .eq('id', existing.id);
                         error = upError;
                     } else {
-                        // ยังไม่มี (ลงออกก่อนเข้า) -> Insert ใหม่
                         const { error: insError } = await client
                             .from('TimeStampPlus')
                             .insert([{
-                                id: newID, // 🔥 ใส่ ID ที่สร้างเอง
+                                id: newID,
                                 personnel_id: userData.personnel_id,
                                 full_name: userData.name,
                                 work_date: todayDB,
@@ -253,7 +314,7 @@
                 if (error) throw error;
 
                 showToast("บันทึกสำเร็จ!");
-                loadTodayRecord(); // รีเฟรชข้อมูล
+                loadTodayRecord();
 
             } catch (err) {
                 console.error(err);
