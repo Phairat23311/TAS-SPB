@@ -8,57 +8,100 @@
     
     <style>
         body { font-family: 'Sarabun', sans-serif; background-color: #f8fafc; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+        
+        /* ส่วนหัว */
         .header-bar { width: 100%; max-width: 600px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
-        .user-info { font-weight: bold; color: #334155; }
-        .logout-btn { background: #fee2e2; color: #ef4444; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-weight: bold; }
-        
-        .menu-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; width: 100%; max-width: 600px; }
-        .menu-card {
-            background: white; border-radius: 20px; padding: 25px 10px; text-align: center; cursor: pointer;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: transform 0.2s; text-decoration: none; color: inherit;
-            display: flex; flex-direction: column; align-items: center;
+        .user-info { font-weight: bold; color: #334155; font-size: 1.1rem; display: flex; align-items: center; gap: 8px; }
+        .logout-btn { background: #fee2e2; color: #ef4444; border: 1px solid #fca5a5; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-weight: bold; transition: all 0.2s; }
+        .logout-btn:hover { background: #ef4444; color: white; }
+
+        /* Grid Layout */
+        .menu-grid { 
+            display: grid; 
+            grid-template-columns: repeat(2, 1fr); 
+            gap: 15px; 
+            width: 100%; 
+            max-width: 600px; 
         }
-        .menu-card:hover { transform: translateY(-5px); }
-        .emoji-icon { font-size: 3.5rem; margin-bottom: 10px; }
-        .menu-title { font-size: 1.1rem; font-weight: bold; color: #1e293b; }
-        .full-width { grid-column: span 2; background: linear-gradient(135deg, #4f46e5, #4338ca); color: white; }
-        .full-width .menu-title { color: white; }
+
+        /* การ์ดเมนู */
+        .menu-card {
+            background: white; border-radius: 20px; padding: 20px 10px;
+            text-align: center; cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-decoration: none; color: inherit;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            height: 140px;
+        }
+        .menu-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
         
-        /* สไตล์สำหรับปุ่ม DB */
-        .db-btn { border: 2px solid #6366f1; background: #eff6ff; }
-        .db-btn .menu-title { color: #4338ca; }
+        .emoji-icon { font-size: 3rem; margin-bottom: 10px; }
+        .menu-title { font-size: 1rem; font-weight: bold; color: #1e293b; }
+        
+        /* สไตล์ปุ่มพิเศษ */
+        .full-width { grid-column: span 2; background: linear-gradient(135deg, #4f46e5, #4338ca); color: white; height: auto; padding: 30px; }
+        .full-width .menu-title { color: white; font-size: 1.3rem; }
+        
+        .btn-process { background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; }
+        .btn-process .menu-title { color: white; }
+
+        .btn-db { border: 2px solid #e0e7ff; background: #f1f5f9; }
+        .btn-db .menu-title { color: #475569; }
+
     </style>
     
     <script src="supabase.js"></script>
     <script src="sweetalert2.js"></script>
     <script src="config.js"></script> </head>
 <body>
+
     <div class="header-bar">
-        <div class="user-info">👤 <span id="userName">...</span></div>
+        <div class="user-info">
+            <span>👤</span> <span id="userName">กำลังโหลด...</span>
+        </div>
         <button class="logout-btn" onclick="logout()">ออกจากระบบ</button>
     </div>
 
     <div class="menu-grid">
         <a href="attendance.html" class="menu-card full-width">
-            <span class="emoji-icon">🕒</span><span class="menu-title">ลงเวลาทำงาน</span>
+            <span class="emoji-icon">🕒</span>
+            <span class="menu-title">ลงเวลาทำงาน</span>
         </a>
-        
-        <a href="db.html" class="menu-card db-btn">
-            <span class="emoji-icon">🗄️</span><span class="menu-title">จัดการฐานข้อมูล</span>
+
+        <a href="process.html" class="menu-card btn-process">
+            <span class="emoji-icon">⚡</span>
+            <span class="menu-title">ประมวลผลข้อมูล</span>
+        </a>
+
+        <a href="db.html" class="menu-card btn-db">
+            <span class="emoji-icon">🗄️</span>
+            <span class="menu-title">ฐานข้อมูลเวลา</span>
+        </a>
+
+        <a href="leave.html" class="menu-card">
+            <span class="emoji-icon">📝</span>
+            <span class="menu-title">บันทึกการลา</span>
         </a>
 
         <a href="report.html" class="menu-card">
-            <span class="emoji-icon">📊</span><span class="menu-title">รายงาน</span>
+            <span class="emoji-icon">📊</span>
+            <span class="menu-title">รายงาน</span>
         </a>
-        
+
         <a href="settings.html" class="menu-card">
-            <span class="emoji-icon">⚙️</span><span class="menu-title">ตั้งค่า</span>
+            <span class="emoji-icon">⚙️</span>
+            <span class="menu-title">ตั้งค่า</span>
         </a>
     </div>
 
     <script>
-        const user = checkAuth(); // เรียกใช้ฟังก์ชันกลาง
-        if(user) document.getElementById('userName').innerText = user.name;
+        // ตรวจสอบสิทธิ์ (Level 1) ผ่านฟังก์ชันกลาง
+        const user = checkAuth(); 
+        
+        if(user) {
+            document.getElementById('userName').innerText = user.name;
+        }
     </script>
 </body>
 </html>
