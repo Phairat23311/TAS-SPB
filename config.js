@@ -9,9 +9,9 @@ const TAS_CONFIG = {
     // ชื่อตาราง (ต้องตรงกับใน DB เป๊ะๆ)
 
     TABLE_USER: "Personnel",
-    TABLE_TIME: "TimeStampPlus",  // ต้นทาง (จากเว็บ)
-    TABLE_TARGET: "TimeStamp",    // ปลายทาง (รวมแล้ว)
-    TABLE_SETTINGS: "Settings"
+    TABLE_SETTINGS: "Settings",
+    TABLE_SOURCE: "TimeStampPlus", 
+    TABLE_TARGET: "TimeStamp"
 
 };
 
