@@ -2,76 +2,121 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>โปรไฟล์ - TAS-SPB</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="favicon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="ios-fix.js"></script>
+    <script src="supabase.js"></script>
+    <script src="sweetalert2.js"></script>
+    <script src="config.js"></script>
     <style>
-        /* CSS ปรับแต่งให้สวยงามแสดงประวัติเป็น Timeline */
-        .profile-header { text-align: center; padding: 20px; background: white; border-radius: 16px; margin-bottom: 20px; }
-        .user-emoji { font-size: 4rem; margin-bottom: 10px; }
-        .history-card { background: white; padding: 15px; border-radius: 12px; margin-bottom: 15px; }
+        :root { --primary: #4f46e5; --bg: #f3f4f6; --white: #ffffff; --text: #1f2937; }
+        body { font-family: 'Sarabun', sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
+        .container { max-width: 500px; margin: 0 auto; }
+        .card { background: var(--white); border-radius: 20px; padding: 25px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 20px; text-align: center; }
+        .profile-emoji { font-size: 4rem; margin-bottom: 15px; display: block; }
+        .info-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f0f0f0; font-size: 0.95rem; }
+        .info-label { color: #6b7280; font-weight: 400; }
+        .info-value { color: var(--text); font-weight: 600; }
+        .history-list { text-align: left; margin-top: 20px; }
+        .history-item { background: #f9fafb; padding: 12px; border-radius: 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .btn-action { width: 100%; padding: 14px; border: none; border-radius: 12px; background: var(--primary); color: white; font-weight: 700; cursor: pointer; margin-top: 10px; transition: 0.3s; }
+        .btn-back { background: none; border: 1px solid #d1d5db; color: #4b5563; margin-top: 15px; width: 100%; padding: 12px; border-radius: 12px; cursor: pointer; }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="profile-header">
-            <div class="user-emoji">👤</div>
-            <h2 id="disp-name">กำลังโหลด...</h2>
-            <p id="disp-id">ID: -</p>
-        </div>
-
-        <div id="pw-section" class="history-card">
-            <h3>🔐 จัดการรหัสผ่าน</h3>
-            <div id="first-time-setup" style="display:none; color: red; margin-bottom:10px;">
-                * กรุณากำหนดรหัสผ่านใหม่เพื่อเริ่มใช้งาน
+        <div class="card">
+            <span class="profile-emoji">👤</span>
+            <h2 id="u-name">กำลังโหลด...</h2>
+            <p id="u-id" style="color: #6b7280; margin-bottom: 20px;">ID: -</p>
+            
+            <div class="info-row">
+                <span class="info-label">สถานะ</span>
+                <span class="info-value" id="u-level">-</span>
             </div>
-            <button class="btn-save" onclick="handleChangePassword()">เปลี่ยนรหัสผ่าน</button>
+            <button class="btn-action" onclick="changePassword()">🔐 เปลี่ยนรหัสผ่าน</button>
         </div>
 
-        <div class="history-card">
-            <h3>🕒 ประวัติการลงเวลาล่าสุด</h3>
-            <div id="att-history">กำลังโหลด...</div>
+        <div class="card">
+            <h3 style="text-align:left; margin-bottom:15px;"><i class="fas fa-history"></i> ประวัติการลงเวลา (ล่าสุด)</h3>
+            <div id="att-list" class="history-list">
+                <p style="text-align:center; color:#9ca3af;">กำลังดึงข้อมูล...</p>
+            </div>
         </div>
 
-        <div class="history-card">
-            <h3>✈️ ประวัติการลา</h3>
-            <div id="leave-history">กำลังโหลด...</div>
-        </div>
+        <button class="btn-back" onclick="window.location.href='menu.html'"><i class="fas fa-chevron-left"></i> กลับหน้าเมนู</button>
     </div>
 
-    <script src="supabase.js"></script>
-    <script src="config.js"></script>
     <script>
         const user = JSON.parse(localStorage.getItem('tas_user') || '{}');
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            if(!user.personnel_id) window.location.href='login.html';
-            
-            document.getElementById('disp-name').innerText = user.name || 'ยังไม่ระบุชื่อ';
-            document.getElementById('disp-id').innerText = `รหัสบุคลากร: ${user.personnel_id}`;
-
-            // เงื่อนไขเปิดมาครั้งแรก: รหัสพนักงานตรงกับรหัสผ่าน หรือ รหัสผ่านว่าง
-            if (user.personnel_id === user.Password || !user.Password) {
-                document.getElementById('first-time-setup').style.display = 'block';
-            }
-
-            loadHistory();
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!user.personnel_id) { window.location.href = 'login.html'; return; }
+            document.getElementById('u-name').innerText = user.name;
+            document.getElementById('u-id').innerText = `รหัสบุคลากร: ${user.personnel_id}`;
+            document.getElementById('u-level').innerText = `Level ${user.level}`;
+            loadAttendance();
         });
 
-        async function loadHistory() {
-            // ดึงข้อมูล TimeStamp จาก DB ของ user คนนั้นๆ
-            const { data: att } = await sbClient.from(TAS_CONFIG.TABLE_TARGET)
-                .select('*').eq('personnel_id', user.personnel_id).limit(10).order('work_date', {ascending: false});
-            
-            // ดึงข้อมูลการลา
-            const { data: leaves } = await sbClient.from('Leave_records')
-                .select('*').eq('personnel_id', user.personnel_id).limit(10);
+        async function loadAttendance() {
+            const { data, error } = await sbClient.from(TAS_CONFIG.TABLE_TARGET)
+                .select('work_date, check_in, check_out')
+                .eq('personnel_id', user.personnel_id)
+                .order('work_date', { ascending: false })
+                .limit(5);
 
-            // แสดงผลในรูปแบบ List ...
+            const container = document.getElementById('att-list');
+            if (data && data.length > 0) {
+                container.innerHTML = data.map(item => `
+                    <div class="history-item">
+                        <div>
+                            <div style="font-weight:700;">${item.work_date}</div>
+                            <div style="font-size:0.8rem; color:#6b7280;">บันทึกสำเร็จ</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="color:#10b981; font-weight:700;">${item.check_in || '--:--'}</div>
+                            <div style="color:#ef4444; font-weight:700;">${item.check_out || '--:--'}</div>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                container.innerHTML = '<p style="text-align:center; color:#9ca3af;">ไม่พบประวัติการลงเวลา</p>';
+            }
         }
 
-        async function handleChangePassword() {
-            // Logic เปลี่ยนรหัสผ่านจากหน้า settings.html ที่คุณเคยมี
-            // เพิ่มการตรวจสอบชื่อ-สกุลหากเป็นการล็อกอินครั้งแรก
+        async function changePassword() {
+            const { value: formValues } = await Swal.fire({
+                title: 'เปลี่ยนรหัสผ่าน',
+                html:
+                    '<input id="old-p" class="swal2-input" type="password" placeholder="รหัสผ่านเดิม">' +
+                    '<input id="new-p" class="swal2-input" type="password" placeholder="รหัสผ่านใหม่">',
+                focusConfirm: false,
+                preConfirm: () => {
+                    return [
+                        document.getElementById('old-p').value,
+                        document.getElementById('new-p').value
+                    ]
+                }
+            });
+
+            if (formValues) {
+                const [oldP, newP] = formValues;
+                if (oldP !== user.Password) {
+                    Swal.fire('ผิดพลาด', 'รหัสผ่านเดิมไม่ถูกต้อง', 'error');
+                } else {
+                    await sbClient.from(TAS_CONFIG.TABLE_USER).update({ Password: newP }).eq('personnel_id', user.personnel_id);
+                    user.Password = newP;
+                    localStorage.setItem('tas_user', JSON.stringify(user));
+                    Swal.fire('สำเร็จ', 'เปลี่ยนรหัสผ่านเรียบร้อยแล้ว', 'success');
+                }
+            }
         }
     </script>
 </body>
