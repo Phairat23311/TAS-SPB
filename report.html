@@ -4,175 +4,187 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>รายงานประจำวัน - TAS-SPB</title>
-    <link rel="icon" type="image/png" href="favicon.png">
-    <link rel="apple-touch-icon" href="favicon.png">
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-        :root { --primary: #4f46e5; --bg: #525659; --a4-w: 210mm; --a4-h: 297mm; }
-        * { box-sizing: border-box; }
-        body { font-family: 'Sarabun', sans-serif; background: var(--bg); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-        .controls-bar { width: 100%; max-width: var(--a4-w); background: white; padding: 15px; border-radius: 12px; margin-bottom: 20px; display: flex; gap: 10px; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); flex-wrap: wrap; }
-        .date-input { padding: 8px; border: 1px solid #ddd; border-radius: 8px; font-family: 'Sarabun'; }
-        .btn { padding: 8px 15px; border: none; border-radius: 8px; cursor: pointer; color: white; font-weight: bold; display: flex; align-items: center; gap: 8px; }
-        .btn-load { background: var(--primary); }
-        
-        #reportContainer { width: 100%; display: flex; flex-direction: column; align-items: center; }
-        .paper { 
-            width: var(--a4-w); height: var(--a4-h); background: white; padding: 15mm 20mm; 
-            margin-bottom: 20px; box-shadow: 0 0 15px rgba(0,0,0,0.5); position: relative;
-            display: flex; flex-direction: column;
+        :root { 
+            --primary: #4f46e5; 
+            --bg-canvas: #525659;
+            --paper-w: 210mm; 
+            --paper-h: 297mm;
+            /* กั้นหน้า 3 ซม. ด้านอื่น 2 ซม. ตามมาตรฐานสารบรรณ */
+            --pad-top: 20mm; --pad-bottom: 20mm; --pad-left: 30mm; --pad-right: 20mm;
         }
         
-        .rpt-header { text-align: center; margin-bottom: 10px; min-height: 80px; display: flex; flex-direction: column; justify-content: center; }
-        .rpt-title { font-size: 16pt; font-weight: bold; line-height: 1.1; word-wrap: break-word; }
-        .rpt-date, .rpt-school { font-size: 15pt; margin-top: 2px; }
+        * { box-sizing: border-box; -webkit-print-color-adjust: exact; }
+        
+        body { 
+            font-family: 'Sarabun', sans-serif; 
+            background: var(--bg-canvas); 
+            margin: 0; padding: 0;
+            display: flex; flex-direction: column; align-items: center;
+        }
 
-        .rpt-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; table-layout: fixed; }
-        .rpt-table th, .rpt-table td { border: 1px solid #000; padding: 3px 5px; font-size: 14pt; overflow: hidden; }
-        .rpt-table th { background-color: #f2f2f2; font-weight: bold; text-align: center; }
+        /* ส่วนควบคุมด้านบน */
+        .toolbar {
+            width: 100%; position: sticky; top: 0; z-index: 100;
+            background: white; padding: 10px; border-bottom: 1px solid #ddd;
+            display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;
+        }
+        .btn { padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; font-family: 'Sarabun'; }
+        .btn-print { background: #333; color: white; }
+        
+        /* พื้นที่แสดงผลยืดหยุ่นตามหน้าจอแต่คงสัดส่วน A4 */
+        #reportWrapper { padding: 20px 0; display: flex; flex-direction: column; align-items: center; width: 100%; }
+        
+        .paper { 
+            width: var(--paper-w); height: var(--paper-h);
+            background: white; padding: var(--pad-top) var(--pad-right) var(--pad-bottom) var(--pad-left);
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+            margin-bottom: 10mm; position: relative;
+            display: flex; flex-direction: column; overflow: hidden;
+        }
 
-        .footer-content { margin-top: auto; width: 100%; padding-bottom: 10px; }
-        .summary-grid { display: grid; grid-template-columns: 1fr 1fr; font-size: 14pt; line-height: 1.5; margin-bottom: 25px; border-top: 1px solid #eee; padding-top: 10px; }
-        .signature-section { width: 100%; text-align: center; font-size: 14pt; line-height: 1.6; margin-top: 10px; }
-        .page-number { position: absolute; bottom: 10mm; right: 20mm; font-size: 12pt; color: #666; }
+        /* ปรับสเกลสำหรับหน้าจอมือถือ */
+        @media screen and (max-width: 215mm) {
+            #reportWrapper { transform: scale(0.45); transform-origin: top center; height: auto; margin-bottom: -50%; }
+        }
+
+        .rpt-header { text-align: center; margin-bottom: 10mm; line-height: 1.2; }
+        .rpt-title { font-size: 16pt; font-weight: bold; margin-bottom: 5px; }
+        .rpt-sub { font-size: 15pt; }
+
+        .rpt-table { width: 100%; border-collapse: collapse; border: 1.5px solid black; }
+        .rpt-table th, .rpt-table td { border: 1px solid black; padding: 2px 4px; font-size: 14pt; line-height: 1.1; }
+        .rpt-table th { background: #f2f2f2; text-align: center; font-weight: bold; }
+
+        /* ท้ายกระดาษเว้น 1 บรรทัดจากตาราง */
+        .footer-content { margin-top: 1.2rem; width: 100%; font-size: 14pt; }
+        .summary-grid { display: grid; grid-template-columns: 1.2fr 1fr; line-height: 1.3; }
+        .signature-area { width: 100%; text-align: center; margin-top: 15mm; line-height: 1.6; }
+        
+        .page-num { position: absolute; bottom: 10mm; right: 20mm; font-size: 12pt; }
 
         @media print {
-            body { background: white; padding: 0; }
-            .controls-bar { display: none; }
-            .paper { box-shadow: none; margin: 0; page-break-after: always; }
+            body { background: none; }
+            .toolbar { display: none; }
+            #reportWrapper { transform: none !important; margin: 0; padding: 0; }
+            .paper { margin: 0; box-shadow: none; page-break-after: always; }
         }
     </style>
-    <script src="supabase.js"></script>
-    <script src="sweetalert2.js"></script>
-    <script src="config.js"></script>
+    <script src="supabase.js"></script><script src="config.js"></script>
 </head>
 <body>
-    <div class="controls-bar">
-        <a href="menu.html" style="text-decoration:none; color:#666; font-weight:bold;"><i class="fas fa-arrow-left"></i> เมนู</a>
-        <input type="date" id="filterDate" class="date-input">
-        <button class="btn btn-load" onclick="generateReport()"><i class="fas fa-sync-alt"></i> โหลดข้อมูล</button>
-        <button class="btn" style="background:#333" onclick="window.print()"><i class="fas fa-print"></i> พิมพ์</button>
+    <div class="toolbar">
+        <button class="btn" onclick="window.location.href='menu.html'"><i class="fas fa-arrow-left"></i> กลับ</button>
+        <input type="date" id="reportDate" style="padding:5px; border-radius:5px; border:1px solid #ccc;">
+        <button class="btn btn-print" style="background:#4f46e5; color:white;" onclick="loadData()">โหลดข้อมูล</button>
+        <button class="btn btn-print" onclick="window.print()"><i class="fas fa-print"></i> พิมพ์ PDF</button>
     </div>
 
-    <div id="reportContainer"></div>
+    <div id="reportWrapper">
+        <div class="paper"><div style="text-align:center; margin-top:100mm; color:#aaa;">กรุณาเลือกวันที่และกดโหลดข้อมูล</div></div>
+    </div>
 
     <script>
-        let appSettings = {};
-        const ROWS_PER_PAGE = 22; // จำนวนบรรทัดต่อหน้า (ปรับได้ตามความเหมาะสม)
+        const ROWS_MAX = 20; // จำกัดหน้าละ 20 บรรทัดเพื่อให้ท้ายไม่ตก
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            document.getElementById('filterDate').value = new Date().toISOString().split('T')[0];
-            const { data } = await sbClient.from(TAS_CONFIG.TABLE_SETTINGS).select('*');
-            if (data) data.forEach(item => appSettings[item.key] = item.value);
-        });
+        async function loadData() {
+            const date = document.getElementById('reportDate').value;
+            const wrapper = document.getElementById('reportWrapper');
+            if(!date) return;
+            wrapper.innerHTML = 'กำลังประมวลผล...';
 
-        function formatThaiDate(dateStr) {
-            const months = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
-            const d = new Date(dateStr);
-            return `วัน${['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'][d.getDay()]}ที่ ${d.getDate()} ${months[d.getMonth()]} พ.ศ.${d.getFullYear() + 543}`;
-        }
+            const { data: users } = await sbClient.from(TAS_CONFIG.TABLE_USER).select('*');
+            const { data: att } = await sbClient.from(TAS_CONFIG.TABLE_TARGET).select('*').eq('work_date', date);
+            const { data: leaves } = await sbClient.from('Leave_records').select('*').eq('leave_date', date);
+            const { data: settings } = await sbClient.from(TAS_CONFIG.TABLE_SETTINGS).select('*');
+            
+            const config = {}; settings?.forEach(s => config[s.key] = s.value);
+            const attMap = {}; att?.forEach(a => attMap[a.personnel_id] = a);
+            const leaveMap = {}; leaves?.forEach(l => leaveMap[l.personnel_id] = l);
 
-        function getSettingVal(key, typeName) {
-            const raw = appSettings[key] || "";
-            const pair = raw.split(',').find(p => p.startsWith(typeName + ":"));
-            const val = pair ? pair.split(':')[1] : "0";
-            return (val === "0" || val === "") ? "-" : val;
-        }
+            const groups = {};
+            users.forEach(u => {
+                const type = u.personnel_type || 'ทั่วไป';
+                if(!groups[type]) groups[type] = [];
+                const ts = attMap[u.personnel_id];
+                const lv = leaveMap[u.personnel_id];
+                u.tIn = ts?.time_in || "";
+                u.tOut = ts?.time_out || "";
+                u.note = lv?.leave_type || (u.tIn > (config['Late'] || '08:30') ? "มาสาย" : "");
+                u.sortOrder = u.tIn ? `1_${u.tIn}` : `2_${u.note}`;
+                groups[type].push(u);
+            });
 
-        async function generateReport() {
-            const date = document.getElementById('filterDate').value;
-            const container = document.getElementById('reportContainer');
-            container.innerHTML = 'กำลังโหลด...';
+            wrapper.innerHTML = "";
+            Object.keys(groups).sort().forEach(type => {
+                const list = groups[type].sort((a,b) => a.sortOrder.localeCompare(b.sortOrder));
+                const totalPages = Math.ceil(list.length / ROWS_MAX);
 
-            try {
-                const { data: users } = await sbClient.from(TAS_CONFIG.TABLE_USER).select('*');
-                const { data: att } = await sbClient.from(TAS_CONFIG.TABLE_TARGET).select('*').eq('work_date', date);
-                const { data: leaves } = await sbClient.from('Leave_records').select('*').eq('leave_date', date);
+                for(let p = 0; p < totalPages; p++) {
+                    const pageEl = document.createElement('div');
+                    pageEl.className = 'paper';
+                    const items = list.slice(p * ROWS_MAX, (p + 1) * ROWS_MAX);
+                    
+                    pageEl.innerHTML = `
+                        <div class="rpt-header">
+                            <div class="rpt-title">บันทึกการลงเวลาปฏิบัติงานของ${type}</div>
+                            <div class="rpt-sub">${formatDate(date)}</div>
+                            <div class="rpt-sub">${config['school_name'] || ''}</div>
+                        </div>
+                        <table class="rpt-table">
+                            <thead><tr><th width="40">ที่</th><th>ชื่อ-สกุล</th><th width="70">มา</th><th width="70">กลับ</th><th>หมายเหตุ</th></tr></thead>
+                            <tbody>
+                                ${items.map((u, i) => `<tr><td align="center">${(p*ROWS_MAX)+i+1}</td><td>${u.name}</td><td align="center">${u.tIn.slice(0,5)}</td><td align="center">${u.tOut.slice(0,5)}</td><td>${u.note}</td></tr>`).join('')}
+                            </tbody>
+                        </table>
+                        <div class="page-num">${p+1}/${totalPages}</div>
+                    `;
 
-                const attMap = {}; att?.forEach(x => attMap[x.personnel_id] = x);
-                const leaveMap = {}; leaves?.forEach(x => leaveMap[x.personnel_id] = x);
-
-                const groups = {};
-                users.forEach(u => {
-                    const type = u.personnel_type || 'ทั่วไป';
-                    if (!groups[type]) groups[type] = [];
-                    const ts = attMap[u.personnel_id];
-                    const lv = leaveMap[u.personnel_id];
-                    u.tIn = ts?.time_in || "";
-                    u.tOut = ts?.time_out || "";
-                    u.leaveType = lv?.leave_type || "";
-                    u.note = u.leaveType || (u.tIn > (appSettings['Late'] || '08:30') ? "มาสาย" : "");
-                    u.sortKey = u.tIn ? "1_" + u.tIn : "2_" + u.leaveType;
-                    groups[type].push(u);
-                });
-
-                container.innerHTML = '';
-                Object.keys(groups).sort().forEach(type => {
-                    // เรียงลำดับ: 1. มีเวลาเข้า (เรียงตามเวลา) 2. ไม่มีเวลาเข้า (เรียงตามพยัญชนะลา)
-                    const sortedList = groups[type].sort((a, b) => a.sortKey.localeCompare(b.sortKey));
-                    const totalPages = Math.ceil(sortedList.length / ROWS_PER_PAGE);
-
-                    for (let p = 0; p < totalPages; p++) {
-                        const isLastPage = (p === totalPages - 1);
-                        const pageItems = sortedList.slice(p * ROWS_PER_PAGE, (p + 1) * ROWS_PER_PAGE);
-                        const pageEl = document.createElement('div');
-                        pageEl.className = 'paper';
-                        
-                        // Header
-                        const truncatedHeader = type.length > 35 ? type.substring(0, 35) + "ฯ" : type;
-                        pageEl.innerHTML = `
-                            <div class="rpt-header">
-                                <div class="rpt-title">บันทึกการลงเวลาปฏิบัติงานของ${type}</div>
-                                <div class="rpt-date">${formatThaiDate(date)}</div>
-                                <div class="rpt-school">${appSettings['school_name'] || ''}</div>
+                    if(p === totalPages - 1) { // หน้าสุดท้ายของประเภท
+                        const summary = document.createElement('div');
+                        summary.className = 'footer-content';
+                        summary.innerHTML = `
+                            <div class="summary-grid">
+                                <div>
+                                    ${type.length > 35 ? type.slice(0,35)+'ฯ' : type} ทั้งหมด ${list.length} คน<br>
+                                    ตำแหน่งว่าง ${getVal(config['vacant_position'], type)} คน<br>
+                                    ไปราชการ ${list.filter(x => x.note.includes('ราชการ')).length || '-'}<br>
+                                    ไม่มาปฏิบัติราชการ ${list.filter(x => x.note && !x.note.includes('ราชการ') && !x.note.includes('สาย')).length || '-'} คน
+                                </div>
+                                <div style="padding-left:15%">
+                                    มาสาย ${list.filter(x => x.note === 'มาสาย').length || '-'} คน<br>
+                                    ยืมตัวมาช่วยราชการ ${getVal(config['government_service'], type)} คน<br>
+                                    มาปฏิบัติราชการ ${list.length - (list.filter(x => x.note && !x.note.includes('ราชการ') && !x.note.includes('สาย')).length)} คน
+                                </div>
                             </div>
-                            <table class="rpt-table">
-                                <thead><tr><th width="40">ที่</th><th>ชื่อ-สกุล</th><th width="75">มา</th><th width="75">กลับ</th><th>หมายเหตุ</th></tr></thead>
-                                <tbody>
-                                    ${pageItems.map((u, i) => `<tr><td align="center">${(p * ROWS_PER_PAGE) + i + 1}</td><td>${u.name}</td><td align="center">${u.tIn.slice(0, 5)}</td><td align="center">${u.tOut.slice(0, 5)}</td><td>${u.note}</td></tr>`).join('')}
-                                </tbody>
-                            </table>
-                            <div class="page-number">${p+1}/${totalPages}</div>
+                            <div class="signature-area">
+                                <div>(ลงชื่อ)............................................................</div>
+                                <div style="margin-top:5px;">(${config['signer_name'] || ''})</div>
+                                <div>${config['signer_position'] || ''}</div>
+                            </div>
                         `;
-
-                        // Footer (เฉพาะหน้าสุดท้ายของประเภทนั้น)
-                        if (isLastPage) {
-                            const tripCount = sortedList.filter(x => x.leaveType.includes('ไปราชการ')).length;
-                            const leaveAbsCount = sortedList.filter(x => x.leaveType && !x.leaveType.includes('ไปราชการ')).length;
-                            const lateCount = sortedList.filter(x => x.note === "มาสาย").length;
-                            const presentCount = sortedList.length - leaveAbsCount;
-
-                            const footer = document.createElement('div');
-                            footer.className = 'footer-content';
-                            footer.innerHTML = `
-                                <div class="summary-grid">
-                                    <div>
-                                        ${truncatedHeader} ทั้งหมด ${sortedList.length} คน<br>
-                                        ตำแหน่งว่าง ${getSettingVal('vacant_position', type)} คน<br>
-                                        ไปราชการ ${tripCount || '-'}<br>
-                                        ไม่มาปฏิบัติราชการ ${leaveAbsCount || '-'} คน
-                                    </div>
-                                    <div style="padding-left:15%">
-                                        มาสาย ${lateCount || '-'} คน<br>
-                                        ยืมตัวมาช่วยราชการ ${getSettingVal('government_service', type)} คน<br>
-                                        มาปฏิบัติราชการ ${presentCount} คน
-                                    </div>
-                                </div>
-                                <div class="signature-section">
-                                    <div>..................................................................</div>
-                                    <div style="margin-top:5px;">(${appSettings['signer_name'] || ''})</div>
-                                    <div>${appSettings['signer_position'] || ''}</div>
-                                </div>
-                            `;
-                            pageEl.appendChild(footer);
-                        }
-                        container.appendChild(pageEl);
+                        pageEl.appendChild(summary);
                     }
-                });
-            } catch (e) { container.innerHTML = 'Error: ' + e.message; }
+                    wrapper.appendChild(pageEl);
+                }
+            });
         }
+
+        function getVal(str, type) {
+            const pair = str?.split(',').find(p => p.startsWith(type+":"));
+            const v = pair?.split(':')[1]; return (v && v !== "0") ? v : "-";
+        }
+
+        function formatDate(d) {
+            const date = new Date(d);
+            const months = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+            return `วัน${['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'][date.getDay()]}ที่ ${date.getDate()} ${months[date.getMonth()]} พ.ศ. ${date.getFullYear()+543}`;
+        }
+
+        document.getElementById('reportDate').value = new Date().toISOString().split('T')[0];
     </script>
 </body>
 </html>
