@@ -71,15 +71,15 @@
             #reportWrapper { transform: scale(0.42); transform-origin: top center; height: auto; margin-bottom: -60%; }
         }
 
-        /* หัวเรื่อง: แก้ไข Logic การตัดคำให้เป็นธรรมชาติ */
+        /* หัวเรื่อง: แก้ไขให้ตัดทั้งก้อนคำเมื่อล้นบรรทัด */
         .rpt-header { text-align: center; margin-bottom: 6mm; line-height: 1.1; }
         .rpt-title { 
             font-size: 18pt; 
             font-weight: bold; 
             display: block; 
             width: 100%;
-            white-space: normal; /* ปล่อยให้ไหลตามธรรมชาติ */
-            word-break: keep-all; /* ไม่ตัดกลางคำไทย ให้ตัดที่วรรคเท่านั้น */
+            white-space: normal; 
+            word-break: keep-all; /* สำคัญ: ห้ามตัดกลางคำไทย */
             overflow-wrap: break-word;
         }
         .rpt-sub { font-size: 18pt; }
@@ -180,7 +180,7 @@
                         pageEl.className = 'paper';
                         const items = sortedList.slice(p * ROWS_PER_PAGE, (p + 1) * ROWS_PER_PAGE);
                         
-                        // หัวเรื่อง: ใช้ช่องว่างปกติเพื่อให้ Browser คำนวณจุดตัดบรรทัดเองที่วรรค
+                        // หัวเรื่อง: ใช้ช่องว่างปกติ และตั้งค่า CSS ให้ตัดตรงวรรคที่ล้นทั้งก้อน
                         const headerTitle = "บันทึกการลงเวลาปฏิบัติงานของ " + type;
 
                         pageEl.innerHTML = `
