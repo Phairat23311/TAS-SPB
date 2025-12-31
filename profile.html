@@ -18,14 +18,43 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Sarabun', sans-serif; background: var(--bg); color: var(--text); padding: 15px; padding-bottom: 50px; }
         .container { max-width: 500px; margin: 0 auto; }
+
+        /* Header Card - ย้ายไปด้านบนสไตล์เดียวกับหน้าอื่น */
+        .header-card {
+            background: var(--white);
+            padding: 15px 20px;
+            border-radius: 16px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header-title { display: flex; align-items: center; gap: 10px; color: var(--primary); font-weight: 700; }
+        .back-btn {
+            text-decoration: none;
+            color: var(--muted);
+            background: #f9fafb;
+            padding: 8px 15px;
+            border-radius: 20px;
+            border: 1px solid #e5e7eb;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+        }
+
         .card { background: var(--white); border-radius: 24px; padding: 25px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 15px; }
         .profile-info { text-align: center; margin-bottom: 15px; }
         .user-emoji { font-size: 4rem; display: block; margin-bottom: 10px; }
+        
         .tabs { display: flex; background: #e2e8f0; padding: 5px; border-radius: 14px; margin-bottom: 15px; }
         .tab-btn { flex: 1; padding: 10px; border: none; background: transparent; border-radius: 10px; cursor: pointer; font-weight: 600; color: var(--muted); font-family: 'Sarabun'; }
         .tab-btn.active { background: var(--white); color: var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
+        
         .history-item { 
             background: var(--white); border-radius: 16px; padding: 15px; margin-bottom: 10px; 
             display: flex; justify-content: space-between; align-items: center;
@@ -38,6 +67,7 @@
         .time-badge { padding: 4px 8px; border-radius: 8px; font-weight: 700; font-size: 0.85rem; min-width: 55px; text-align: center; }
         .t-in { background: #dcfce7; color: #15803d; }
         .t-out { background: #fee2e2; color: #b91c1c; }
+        
         .pagination { display: flex; gap: 10px; justify-content: center; margin-top: 15px; }
         .btn-page { padding: 8px 16px; border: none; border-radius: 10px; background: var(--white); color: var(--primary); font-weight: 600; cursor: pointer; }
         .btn-page:disabled { opacity: 0.5; }
@@ -46,6 +76,16 @@
 </head>
 <body>
     <div class="container">
+        <div class="header-card">
+            <div class="header-title">
+                <i class="fas fa-user-circle"></i>
+                <span>โปรไฟล์ส่วนตัว</span>
+            </div>
+            <div onclick="window.location.href='menu.html'" class="back-btn">
+                <i class="fas fa-arrow-left"></i> เมนู
+            </div>
+        </div>
+
         <div class="card">
             <div class="profile-info">
                 <span class="user-emoji">👤</span>
@@ -75,14 +115,13 @@
                 <button id="leave-next" class="btn-page" onclick="changeLeavePage(1)">ถัดไป</button>
             </div>
         </div>
-        <a href="menu.html" style="display:block; text-align:center; padding:20px; color:var(--muted); text-decoration:none;">กลับเมนูหลัก</a>
     </div>
 
     <script>
         const user = JSON.parse(localStorage.getItem('tas_user') || '{}');
         let attPage = 0, leavePage = 0, externalBaseURL = "";
-        const pageSizeAtt = 7; // เวลาทำงาน 7 วัน
-        const pageSizeLeave = 5; // การลา 5 รายการ
+        const pageSizeAtt = 7; 
+        const pageSizeLeave = 5; 
 
         document.addEventListener('DOMContentLoaded', async () => {
             if (!user.personnel_id) { window.location.href = 'login.html'; return; }
@@ -115,6 +154,7 @@
                 const dbDates = new Set();
                 const { data: dbData } = await sbClient.from(TAS_CONFIG.TABLE_TARGET).select('work_date, time_in, time_out').eq('personnel_id', user.personnel_id).order('work_date', { ascending: false });
                 if (dbData) { dbData.forEach(item => { dbDates.add(item.work_date); combinedData.push({ ...item, source: 'DB' }); }); }
+                
                 if (externalBaseURL) {
                     const today = new Date();
                     for(let i=0; i<14; i++) {
@@ -137,7 +177,7 @@
                 const paginatedData = combinedData.slice(start, start + pageSizeAtt);
                 let html = "";
                 paginatedData.forEach(item => {
-                    html += `<div class="history-item item-active"><div><div class="item-date">${formatThaiDate(item.work_date)}</div><div class="item-source">${item.source === 'DB' ? 'บันทึกระบบ' : 'รายงานภายนอก'}</div></div><div style="display:flex; gap:5px;"><span class="time-badge t-in">${item.time_in || '--:--'}</span><span class="time-badge t-out">${item.time_out || '--:--'}</span></div></div>`;
+                    html += `<div class="history-item item-active"><div><div class="item-date">${formatThaiDate(item.work_date)}</div><div class="item-source">${item.source === 'DB' ? 'บันทึกระบบ' : 'รายงานภายนอก'}</div></div><div style="display:flex; gap:5px;"><span class="time-badge t-in">${item.time_in ? item.time_in.slice(0, 5) : '--:--'}</span><span class="time-badge t-out">${item.time_out ? item.time_out.slice(0, 5) : '--:--'}</span></div></div>`;
                 });
                 container.innerHTML = html || '<p style="text-align:center; padding:20px; color:var(--muted);">ไม่พบประวัติข้อมูล</p>';
                 document.getElementById('att-prev').disabled = attPage === 0;
@@ -149,16 +189,8 @@
             const container = document.getElementById('leave-list');
             container.innerHTML = '<p style="text-align:center; padding:20px; color:var(--muted);">กำลังโหลดรายการลา...</p>';
             try {
-                // ดึงข้อมูลการลาและกรอง 'ยกเว้น' ออก
-                const { data, count, error } = await sbClient.from('Leave_records')
-                    .select('*', { count: 'exact' })
-                    .eq('personnel_id', user.personnel_id)
-                    .neq('leave_type', 'ยกเว้น')
-                    .order('leave_date', { ascending: false })
-                    .range(leavePage * pageSizeLeave, (leavePage + 1) * pageSizeLeave - 1);
-
+                const { data, error } = await sbClient.from('Leave_records').select('*', { count: 'exact' }).eq('personnel_id', user.personnel_id).neq('leave_type', 'ยกเว้น').order('leave_date', { ascending: false }).range(leavePage * pageSizeLeave, (leavePage + 1) * pageSizeLeave - 1);
                 if (error) throw error;
-
                 if (data && data.length > 0) {
                     container.innerHTML = data.map(item => `
                         <div class="history-item item-leave">
@@ -171,12 +203,9 @@
                 } else {
                     container.innerHTML = '<p style="text-align:center; padding:20px; color:var(--muted);">ไม่พบประวัติการลา</p>';
                 }
-                
-                // ควบคุมปุ่ม Pagination
                 document.getElementById('leave-prev').disabled = leavePage === 0;
                 document.getElementById('leave-next').disabled = (data ? data.length : 0) < pageSizeLeave;
             } catch (e) {
-                console.error(e);
                 container.innerHTML = '<p style="text-align:center; color:red;">เกิดข้อผิดพลาดในการดึงข้อมูล</p>';
             }
         }
