@@ -41,22 +41,25 @@
         .tab-content.active { display: block; }
         
         .history-item { 
-            background: var(--white); border-radius: 16px; padding: 15px; margin-bottom: 10px; 
+            background: var(--white); border-radius: 16px; padding: 12px 15px; margin-bottom: 10px; 
             display: flex; justify-content: space-between; align-items: center;
             border-left: 5px solid #cbd5e1; 
         }
         .item-db { border-left-color: #10b981; } 
         .item-url { border-left-color: #3b82f6; }
         .item-leave { border-left-color: #f59e0b; } 
-        .item-date { font-weight: 700; font-size: 0.95rem; }
-        .item-source { font-size: 0.7rem; color: var(--muted); }
+
+        .day-label { font-size: 0.8rem; font-weight: 700; color: var(--muted); margin-bottom: 2px; }
+        .item-date { font-weight: 700; font-size: 0.95rem; color: var(--text); }
+        .item-source { font-size: 0.65rem; color: var(--muted); }
         .time-badge { padding: 4px 8px; border-radius: 8px; font-weight: 700; font-size: 0.85rem; min-width: 55px; text-align: center; }
         .t-in { background: #dcfce7; color: #15803d; }
         .t-out { background: #fee2e2; color: #b91c1c; }
-        .btn-check-url { border: none; background: #e0e7ff; color: #4338ca; padding: 5px 10px; border-radius: 8px; font-size: 0.75rem; font-weight: 600; cursor: pointer; }
+        .btn-check-url { border: none; background: #f0f4ff; color: #4338ca; padding: 6px 12px; border-radius: 8px; font-size: 0.75rem; font-weight: 600; cursor: pointer; }
 
+        .week-info { text-align: center; font-size: 0.85rem; color: var(--primary); font-weight: 700; margin-bottom: 10px; }
         .pagination { display: flex; gap: 10px; justify-content: center; margin-top: 15px; }
-        .btn-page { padding: 8px 16px; border: none; border-radius: 10px; background: var(--white); color: var(--primary); font-weight: 600; cursor: pointer; }
+        .btn-page { padding: 10px 18px; border: none; border-radius: 12px; background: var(--white); color: var(--primary); font-weight: 600; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .btn-page:disabled { opacity: 0.5; }
         .btn-action { width: 100%; padding: 16px; border: none; border-radius: 16px; background: var(--primary); color: white; font-weight: 700; cursor: pointer; }
     </style>
@@ -83,10 +86,11 @@
         </div>
 
         <div id="tab-att" class="tab-content active">
+            <div id="week-display" class="week-info"></div>
             <div id="att-list"></div>
             <div class="pagination">
-                <button id="att-prev" class="btn-page" onclick="changeAttPage(-1)">สัปดาห์ก่อน</button>
-                <button id="att-next" class="btn-page" onclick="changeAttPage(1)">สัปดาห์ถัดไป</button>
+                <button id="att-prev" class="btn-page" onclick="changeAttWeek(1)">สัปดาห์ก่อน</button>
+                <button id="att-next" class="btn-page" onclick="changeAttWeek(-1)">สัปดาห์ถัดไป</button>
             </div>
         </div>
 
@@ -101,8 +105,9 @@
 
     <script>
         const user = JSON.parse(localStorage.getItem('tas_user') || '{}');
-        let attPage = 0, leavePage = 0, externalBaseURL = "";
-        const pageSize = 7;
+        let weekOffset = 0; // 0 คือสัปดาห์ปัจจุบัน
+        let leavePage = 0;
+        let externalBaseURL = "";
 
         document.addEventListener('DOMContentLoaded', async () => {
             if (!user.personnel_id) { window.location.href = 'login.html'; return; }
@@ -125,37 +130,49 @@
             document.getElementById(`tab-${tab}`).classList.add('active');
         }
 
-        // --- ระบบลงเวลา: เน้นโหลด DB ก่อนเพื่อความเร็ว ---
+        // --- ระบบคำนวณวัน อาทิตย์ - เสาร์ ---
         async function loadAttendance() {
             const container = document.getElementById('att-list');
-            container.innerHTML = '<p style="text-align:center; padding:20px; color:var(--muted);">กำลังโหลดข้อมูลจากระบบ...</p>';
+            container.innerHTML = '<p style="text-align:center; padding:20px; color:var(--muted);">กำลังโหลดข้อมูลสัปดาห์นี้...</p>';
             
-            const today = new Date();
+            // คำนวณวันอาทิตย์ของสัปดาห์ที่เลือก
+            const now = new Date();
+            const startOfWeek = new Date(now);
+            startOfWeek.setDate(now.getDate() - now.getDay() - (7 * weekOffset));
+            
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(startOfWeek.getDate() + 6);
+
+            document.getElementById('week-display').innerText = `${formatThaiDate(startOfWeek)} - ${formatThaiDate(endOfWeek)}`;
+
             let html = "";
             const dbDates = {};
 
-            // 1. ดึงจาก DB (เร็ว)
+            // ดึงข้อมูลจาก DB ในช่วงสัปดาห์นั้น
             const { data: dbData } = await sbClient.from(TAS_CONFIG.TABLE_TARGET)
                 .select('work_date, time_in, time_out')
                 .eq('personnel_id', user.personnel_id)
+                .gte('work_date', startOfWeek.toISOString().split('T')[0])
+                .lte('work_date', endOfWeek.toISOString().split('T')[0])
                 .order('work_date', { ascending: false });
 
             if (dbData) dbData.forEach(item => dbDates[item.work_date] = item);
 
-            // 2. สร้างรายการ 7 วันล่าสุดของหน้านั้นๆ
-            for (let i = 0; i < pageSize; i++) {
-                const targetDate = new Date();
-                targetDate.setDate(today.getDate() - (attPage * pageSize + i));
+            // วนลูปสร้าง 7 วัน (เสาร์ ถอยไป อาทิตย์)
+            for (let i = 6; i >= 0; i--) {
+                const targetDate = new Date(startOfWeek);
+                targetDate.setDate(startOfWeek.getDate() + i);
                 const dateISO = targetDate.toISOString().split('T')[0];
                 const dataInDB = dbDates[dateISO];
+                const dayName = targetDate.toLocaleDateString('th-TH', { weekday: 'short' });
 
                 if (dataInDB) {
-                    html += renderItem(dataInDB, 'DB');
+                    html += renderItem(dataInDB, 'DB', dayName);
                 } else {
-                    // หากไม่มีใน DB ให้สร้างปุ่มกดเช็คจาก URL เอง (ไม่โหลดอัตโนมัติเพื่อประหยัดเวลา)
                     html += `
                     <div class="history-item">
                         <div>
+                            <div class="day-label">${dayName}</div>
                             <div class="item-date">${formatThaiDate(dateISO)}</div>
                             <div class="item-source">ไม่มีในระบบหลัก</div>
                         </div>
@@ -166,16 +183,15 @@
                 }
             }
             container.innerHTML = html;
-            document.getElementById('att-prev').disabled = attPage === 0;
+            document.getElementById('att-next').disabled = weekOffset <= 0;
         }
 
         async function fetchFromURL(dateStr, btn) {
-            const originalHTML = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-            
             const targetDate = new Date(dateStr);
             const dateURL = formatDateURL(targetDate);
+            const dayName = targetDate.toLocaleDateString('th-TH', { weekday: 'short' });
             const proxyURL = `https://api.allorigins.win/get?url=${encodeURIComponent(externalBaseURL + dateURL)}`;
 
             try {
@@ -189,6 +205,7 @@
                     parent.classList.add('item-url');
                     parent.innerHTML = `
                         <div>
+                            <div class="day-label">${dayName}</div>
                             <div class="item-date">${formatThaiDate(dateStr)}</div>
                             <div class="item-source">รายงานภายนอก (URL)</div>
                         </div>
@@ -197,19 +214,19 @@
                             <span class="time-badge t-out">${myRecord.time_out || '--:--'}</span>
                         </div>`;
                 } else {
-                    Swal.fire({ icon: 'info', title: 'ไม่พบข้อมูล', text: 'ไม่พบการลงเวลาในวันที่เลือกจากหน้าเว็บ' });
-                    btn.disabled = false; btn.innerHTML = originalHTML;
+                    Swal.fire({ icon: 'info', title: 'ไม่พบข้อมูล', text: 'ไม่พบรายการลงเวลาในหน้าเว็บ' });
+                    btn.disabled = false; btn.innerHTML = '<i class="fas fa-sync-alt"></i> เช็คจากเว็บ';
                 }
             } catch (err) {
-                Swal.fire('ผิดพลาด', 'ไม่สามารถเชื่อมต่อเว็บรายงานได้', 'error');
-                btn.disabled = false; btn.innerHTML = originalHTML;
+                btn.disabled = false; btn.innerHTML = 'ลองใหม่';
             }
         }
 
-        function renderItem(item, src) {
+        function renderItem(item, src, dayName) {
             return `
             <div class="history-item item-db">
                 <div>
+                    <div class="day-label">${dayName}</div>
                     <div class="item-date">${formatThaiDate(item.work_date)}</div>
                     <div class="item-source">บันทึกในระบบหลัก</div>
                 </div>
@@ -226,10 +243,15 @@
             if (data && data.length > 0) {
                 container.innerHTML = data.map(item => `
                     <div class="history-item item-leave">
-                        <div><div class="item-date">${formatThaiDate(item.leave_date)}</div><div class="item-source">${item.leave_type}</div></div>
+                        <div>
+                            <div class="day-label">${new Date(item.leave_date).toLocaleDateString('th-TH', { weekday: 'short' })}</div>
+                            <div class="item-date">${formatThaiDate(item.leave_date)}</div>
+                            <div class="item-source">${item.leave_type}</div>
+                        </div>
                         <div style="font-size:0.8rem; font-weight:700; color:var(--primary);">${item.status || 'อนุมัติ'}</div>
                     </div>`).join('');
             } else container.innerHTML = '<p style="text-align:center; padding:20px; color:var(--muted);">ไม่พบประวัติการลา</p>';
+            document.getElementById('leave-prev').disabled = leavePage === 0;
         }
 
         function parseHTML(html, d) {
@@ -243,7 +265,7 @@
 
         function formatDateURL(date) { const pad = (n) => String(n).padStart(2, '0'); return `${pad(date.getDate())}${pad(date.getMonth() + 1)}${date.getFullYear()}/`; }
         function formatThaiDate(s) { const d = new Date(s); return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' }); }
-        function changeAttPage(s) { attPage += s; loadAttendance(); }
+        function changeAttWeek(s) { weekOffset += s; loadAttendance(); }
         function changeLeavePage(s) { leavePage += s; loadLeaves(); }
 
         async function changePassword() {
