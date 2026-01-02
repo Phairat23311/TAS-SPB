@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <style>
+/* ================= ฟอนต์ ================= */
 @font-face {
     font-family: 'THSarabunNew';
     src: url('font/THSarabunNew.ttf');
@@ -22,19 +23,23 @@
     --paper-w: 210mm;
     --paper-h: 297mm;
     --pad-top: 15mm;
-    --pad-bottom: 10mm;
+    --pad-bottom: 15mm;
     --pad-left: 30mm;
     --pad-right: 15mm;
 }
 
-* { box-sizing: border-box; }
+* {
+    box-sizing: border-box;
+    -webkit-print-color-adjust: exact;
+}
 
 body {
     font-family: 'THSarabunNew', sans-serif;
-    background: #525659;
     margin: 0;
+    background: #525659;
 }
 
+/* ================= Toolbar ================= */
 .toolbar {
     position: sticky;
     top: 0;
@@ -44,6 +49,7 @@ body {
     justify-content: center;
     gap: 8px;
     border-bottom: 1px solid #ccc;
+    z-index: 1000;
 }
 
 .btn {
@@ -56,6 +62,7 @@ body {
     cursor: pointer;
 }
 
+/* ================= Layout ================= */
 #reportWrapper {
     display: flex;
     flex-direction: column;
@@ -63,35 +70,45 @@ body {
     padding: 20px 0;
 }
 
+/* ================= A4 Paper ================= */
 .paper {
     width: var(--paper-w);
     min-height: var(--paper-h);
     background: #fff;
     padding: var(--pad-top) var(--pad-right) var(--pad-bottom) var(--pad-left);
-    margin-bottom: 10mm;
-    position: relative;
+    margin-bottom: 12mm;
+    box-shadow: 0 0 10px rgba(0,0,0,.3);
 }
 
-.page-num {
-    position: absolute;
-    top: 10mm;
-    right: 15mm;
-    font-size: 14pt;
-}
-
+/* ================= Header ================= */
 .rpt-header {
     text-align: center;
-    margin-bottom: 5mm;
-    line-height: 1.1;
+    margin-bottom: 6mm;
+    line-height: 1.2;
 }
 
-.rpt-title { font-size: 18pt; font-weight: bold; }
-.rpt-sub { font-size: 16pt; }
+.rpt-title {
+    font-size: 18pt;
+    font-weight: bold;
+}
 
+.rpt-sub {
+    font-size: 16pt;
+}
+
+/* ================= Table ================= */
 table {
     width: 100%;
     border-collapse: collapse;
     table-layout: fixed;
+}
+
+thead {
+    display: table-header-group; /* สำคัญ: ให้หัวตารางขึ้นทุกหน้า */
+}
+
+tfoot {
+    display: table-footer-group;
 }
 
 th, td {
@@ -99,10 +116,15 @@ th, td {
     font-size: 16pt;
     padding: 2px 5px;
     height: 26px;
+    vertical-align: middle;
 }
 
-th { font-weight: bold; height: 35px; }
+th {
+    font-weight: bold;
+    height: 34px;
+}
 
+/* ================= Footer ================= */
 .footer-area {
     margin-top: 10mm;
     font-size: 16pt;
@@ -111,18 +133,46 @@ th { font-weight: bold; height: 35px; }
 .summary-grid {
     display: grid;
     grid-template-columns: 1.1fr 1fr;
+    line-height: 1.4;
 }
 
 .signature-area {
     margin-top: 20mm;
     text-align: center;
+    line-height: 1.5;
 }
 
+/* ================= Mobile Preview ================= */
+@media screen and (max-width: 600px) {
+    #reportWrapper {
+        zoom: 0.45;
+    }
+}
+
+/* ================= Print ================= */
 @media print {
-    @page { size: A4; margin: 0; }
-    body { background: none; }
-    .toolbar { display: none; }
-    .paper { margin: 0; page-break-after: always; }
+    @page {
+        size: A4 portrait;
+        margin: 0;
+    }
+
+    body {
+        background: none;
+    }
+
+    .toolbar {
+        display: none;
+    }
+
+    #reportWrapper {
+        padding: 0;
+    }
+
+    .paper {
+        margin: 0;
+        box-shadow: none;
+        page-break-after: always;
+    }
 }
 </style>
 </head>
@@ -149,103 +199,90 @@ async function loadData() {
     reportWrapper.innerHTML = "";
 
     const { data: users } = await sbClient.from(TAS_CONFIG.TABLE_USER).select('*');
-    const { data: att } = await sbClient.from(TAS_CONFIG.TABLE_TARGET).select('*').eq('work_date', dateStr);
-    const { data: leaves } = await sbClient.from('Leave_records').select('*').eq('leave_date', dateStr);
+    const { data: att } = await sbClient.from(TAS_CONFIG.TABLE_TARGET)
+        .select('*').eq('work_date', dateStr);
+    const { data: leaves } = await sbClient.from('Leave_records')
+        .select('*').eq('leave_date', dateStr);
     const { data: settings } = await sbClient.from(TAS_CONFIG.TABLE_SETTINGS).select('*');
 
     const cfg = {};
-    settings.forEach(s => cfg[s.key] = s.value);
+    settings?.forEach(s => cfg[s.key] = s.value);
 
     const attMap = {};
-    att.forEach(a => attMap[a.personnel_id] = a);
+    att?.forEach(a => attMap[a.personnel_id] = a);
 
     const leaveMap = {};
-    leaves.forEach(l => leaveMap[l.personnel_id] = l);
+    leaves?.forEach(l => leaveMap[l.personnel_id] = l);
 
     const groups = {};
-    users.forEach(u => {
+    users?.forEach(u => {
         const type = u.personnel_type || 'ทั่วไป';
         groups[type] ??= [];
-        const ts = attMap[u.personnel_id];
-        const lv = leaveMap[u.personnel_id];
-        u.tIn = ts?.time_in || '';
-        u.tOut = ts?.time_out || '';
-        u.note = lv?.leave_type || '';
+        u.tIn = attMap[u.personnel_id]?.time_in || '';
+        u.tOut = attMap[u.personnel_id]?.time_out || '';
+        u.note = leaveMap[u.personnel_id]?.leave_type || '';
         groups[type].push(u);
     });
 
-    Object.keys(groups).sort().forEach(type => paginateGroup(type, groups[type], dateStr, cfg));
-}
+    Object.keys(groups).sort().forEach(type => {
 
-function createPage(type, dateStr, pageNo, total) {
-    const p = document.createElement('div');
-    p.className = 'paper';
-    p.innerHTML = `
-        <div class="page-num">${pageNo}/${total}</div>
-        <div class="rpt-header">
-            <div class="rpt-title">บันทึกการลงเวลาปฏิบัติงานของ${type}</div>
-            <div class="rpt-sub">${formatThaiDate(dateStr)}</div>
-            <div class="rpt-sub"></div>
-        </div>
-        <table>
-            <thead>
-                <tr>
-                    <th style="width:40px">ที่</th>
-                    <th>ชื่อ-สกุล</th>
-                    <th style="width:80px">เวลามา</th>
-                    <th style="width:80px">เวลากลับ</th>
-                    <th style="width:100px">หมายเหตุ</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
-    `;
-    return p;
-}
+        const list = groups[type];
 
-function paginateGroup(type, list, dateStr, cfg) {
+        const paper = document.createElement('div');
+        paper.className = 'paper';
 
-    let page = createPage(type, dateStr, 1, 1);
-    reportWrapper.appendChild(page);
+        paper.innerHTML = `
+            <div class="rpt-header">
+                <div class="rpt-title">บันทึกการลงเวลาปฏิบัติงานของ${type}</div>
+                <div class="rpt-sub">${formatThaiDate(dateStr)}</div>
+                <div class="rpt-sub">${cfg.school_name || ''}</div>
+            </div>
 
-    let tbody = page.querySelector('tbody');
-    let pageCount = 1;
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:40px">ที่</th>
+                        <th>ชื่อ-สกุล</th>
+                        <th style="width:80px">เวลามา</th>
+                        <th style="width:80px">เวลากลับ</th>
+                        <th style="width:100px">หมายเหตุ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${list.map((u,i)=>`
+                        <tr>
+                            <td align="center">${i+1}</td>
+                            <td>${u.name}</td>
+                            <td align="center">${u.tIn?.slice(0,5)||''}</td>
+                            <td align="center">${u.tOut?.slice(0,5)||''}</td>
+                            <td>${u.note}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
 
-    list.forEach((u, i) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td align="center">${i + 1}</td>
-            <td>${u.name}</td>
-            <td align="center">${u.tIn?.slice(0,5) || ''}</td>
-            <td align="center">${u.tOut?.slice(0,5) || ''}</td>
-            <td>${u.note}</td>
+            <div class="footer-area">
+                <div class="summary-grid">
+                    <div>
+                        - ทั้งหมด ${list.length} คน<br>
+                        - ไปราชการ ${list.filter(x=>x.note.includes('ราชการ')).length || '-'} คน
+                    </div>
+                    <div>
+                        - มาปฏิบัติราชการ ${list.filter(x=>x.tIn).length} คน<br>
+                        - ไม่มาปฏิบัติราชการ ${list.filter(x=>!x.tIn).length} คน
+                    </div>
+                </div>
+
+                <div class="signature-area">
+                    (ลงชื่อ)............................................................<br>
+                    (${cfg.signer_name || ''})<br>
+                    ${cfg.signer_position || ''}
+                </div>
+            </div>
         `;
-        tbody.appendChild(tr);
 
-        if (page.offsetHeight > 1120) { // ความสูง A4 จริง (ประมาณ)
-            tbody.removeChild(tr);
-            pageCount++;
-            page = createPage(type, dateStr, pageCount, pageCount);
-            reportWrapper.appendChild(page);
-            tbody = page.querySelector('tbody');
-            tbody.appendChild(tr);
-        }
+        reportWrapper.appendChild(paper);
     });
-
-    const footer = document.createElement('div');
-    footer.className = 'footer-area';
-    footer.innerHTML = `
-        <div class="summary-grid">
-            <div>- ทั้งหมด ${list.length} คน</div>
-            <div>- มาปฏิบัติราชการ ${list.length} คน</div>
-        </div>
-        <div class="signature-area">
-            (ลงชื่อ)................................................<br>
-            (${cfg.signer_name || ''})<br>
-            ${cfg.signer_position || ''}
-        </div>
-    `;
-    page.appendChild(footer);
 }
 
 function formatThaiDate(d) {
