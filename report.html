@@ -20,10 +20,10 @@
         :root { 
             --paper-w: 210mm; 
             --paper-h: 297mm;
-            --pad-top: 20mm; 
-            --pad-bottom: 15mm; 
+            --pad-top: 15mm; 
+            --pad-bottom: 10mm; 
             --pad-left: 30mm; 
-            --pad-right: 20mm;
+            --pad-right: 15mm;
         }
         
         * { box-sizing: border-box; -webkit-print-color-adjust: exact; }
@@ -33,16 +33,20 @@
             background: #525659; margin: 0; padding: 0;
         }
 
+        /* --- บังคับการพิมพ์ PDF ให้เหมือนพรีวิว --- */
         @media print {
-            @page { size: A4 portrait; margin: 0; }
+            @page { 
+                size: A4 portrait; 
+                margin: 0; /* ตัด Header/Footer ของเบราว์เซอร์ออก */
+            }
             body { background: none; }
             .toolbar { display: none !important; }
             #reportWrapper { padding: 0 !important; width: 100%; }
             .paper { 
                 margin: 0 !important; 
                 box-shadow: none !important; 
-                page-break-after: always !important;
                 height: var(--paper-h) !important;
+                page-break-after: always !important; /* บังคับขึ้นหน้าใหม่เป๊ะๆ */
                 display: block !important;
                 overflow: hidden;
             }
@@ -60,20 +64,21 @@
             display: flex; 
             flex-direction: column; 
             box-shadow: 0 0 10px rgba(0,0,0,0.3);
-            overflow: hidden; /* ล็อคเนื้อหาไม่ให้ไปเบียดหน้าถัดไป */
+            overflow: hidden;
         }
 
-        /* --- แก้ไข: ล็อคตำแหน่งเลขหน้าและหัวกระดาษให้คงที่ทุกหน้า --- */
+        /* ล็อคตำแหน่งเลขหน้า */
         .page-num { position: absolute; top: 10mm; right: 15mm; font-size: 14pt; z-index: 100; }
         
+        /* ล็อคพื้นที่หัวกระดาษให้เท่ากันทุกหน้า */
         .rpt-header { 
             text-align: center; 
             margin-bottom: 5mm; 
             line-height: 1.1;
-            min-height: 30mm; /* บังคับความสูงหัวกระดาษให้เท่ากันทุกหน้า */
+            min-height: 32mm; 
             display: flex;
             flex-direction: column;
-            justify-content: flex-start;
+            justify-content: center;
         }
         .rpt-title { font-size: 18pt; font-weight: bold; display: block; }
         .rpt-sub { font-size: 16pt; display: block; }
@@ -97,13 +102,14 @@
             display: flex; justify-content: center; gap: 8px; align-items: center;
         }
         .btn { 
-            padding: 8px 12px; border: none; font-family: 'THSarabunNew'; 
+            padding: 8px 15px; border: none; font-family: 'THSarabunNew'; 
             font-size: 15pt; cursor: pointer; font-weight: bold; border-radius: 6px;
             display: flex; align-items: center; gap: 5px;
         }
+
         @media screen and (max-width: 600px) {
-            .btn span { display: none; }
-            .btn { padding: 10px 15px; }
+            .btn span { display: none; } /* ซ่อนตัวหนังสือบนมือถือ เหลือแต่ไอคอน */
+            .btn { padding: 10px 18px; }
             #reportWrapper { transform: scale(0.4); transform-origin: top center; margin-bottom: -60%; }
         }
     </style>
@@ -133,7 +139,7 @@
             const dateStr = document.getElementById('reportDate').value;
             const wrapper = document.getElementById('reportWrapper');
             if(!dateStr) return;
-            document.title = `รายงาน_${dateStr}`;
+            document.title = `รายงานการลงเวลา_${dateStr}`;
             wrapper.innerHTML = "";
 
             try {
@@ -178,11 +184,11 @@
                             <table class="rpt-table">
                                 <thead>
                                     <tr>
-                                        <th style="width:40px">ที่</th>
+                                        <th style="width:45px">ที่</th>
                                         <th>ชื่อ-สกุล</th>
                                         <th style="width:80px">เวลามา</th>
                                         <th style="width:80px">เวลากลับ</th>
-                                        <th style="width:100px">หมายเหตุ</th>
+                                        <th style="width:110px">หมายเหตุ</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -201,12 +207,14 @@
                         if(p === totalP - 1) {
                             const trip = list.filter(x => x.note.includes('ราชการ')).length;
                             const leave = list.filter(x => x.note && !x.note.includes('ราชการ') && !x.note.includes('สาย')).length;
+                            const late = list.filter(x => x.note === 'มาสาย').length;
+                            
                             const footer = document.createElement('div');
                             footer.className = 'footer-area';
                             footer.innerHTML = `
                                 <div class="summary-grid">
                                     <div>- ทั้งหมด ${list.length} คน<br>- ตำแหน่งว่าง ${getVal(config['vacant_position'], type)} คน<br>- ไปราชการ ${trip || '-'} คน</div>
-                                    <div>- มาปฏิบัติราชการ ${list.length - leave} คน<br>- ไม่มาปฏิบัติราชการ ${leave || '-'} คน</div>
+                                    <div>- มาปฏิบัติราชการ ${list.length - leave} คน<br>- มาสาย ${late || '-'} คน<br>- ไม่มาปฏิบัติราชการ ${leave || '-'} คน</div>
                                 </div>
                                 <div class="signature-area">
                                     (ลงชื่อ)............................................................<br>
