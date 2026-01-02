@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>รายงานการลงเวลา</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         @font-face {
             font-family: 'THSarabunNew';
@@ -42,6 +43,7 @@
                 box-shadow: none !important; 
                 page-break-after: always !important;
                 height: var(--paper-h) !important;
+                display: block !important;
             }
         }
 
@@ -56,62 +58,60 @@
             position: relative; 
             display: flex; 
             flex-direction: column; 
-            overflow: hidden;
+            overflow: hidden; /* ล็อคเนื้อหาไม่ให้ไปดันหน้าถัดไป */
             box-shadow: 0 0 10px rgba(0,0,0,0.3);
         }
 
-        .page-num { 
-            position: absolute; 
-            top: 10mm; 
-            right: 15mm; 
-            font-size: 14pt; 
-            z-index: 100;
-        }
-
+        .page-num { position: absolute; top: 10mm; right: 15mm; font-size: 14pt; z-index: 100; }
         .rpt-header { text-align: center; margin-bottom: 5mm; line-height: 1.1; margin-top: 5mm; }
         .rpt-title { font-size: 18pt; font-weight: bold; display: block; }
         .rpt-sub { font-size: 16pt; display: block; }
 
         .rpt-table { width: 100%; border-collapse: collapse; border: 1.2px solid black; table-layout: fixed; }
-        .rpt-table th { border: 1px solid black; height: 35px; font-size: 16pt; font-weight: bold; }
+        .rpt-table th { border: 1px solid black; background: #fff !important; height: 35px; font-size: 16pt; font-weight: bold; }
         .rpt-table td { 
             border: 1px solid black; padding: 0 5px; font-size: 16pt; 
-            height: 26px; 
-            vertical-align: middle; line-height: 1; 
+            height: 26px; vertical-align: middle; line-height: 1; 
             overflow: hidden; white-space: nowrap; 
         }
 
         .footer-area { margin-top: auto; padding-bottom: 5mm; }
         .summary-grid { display: grid; grid-template-columns: 1.1fr 1fr; font-size: 16pt; line-height: 1.3; }
-        
-        .signature-area { 
-            margin-top: 20mm; 
-            text-align: center; 
-            font-size: 16pt; 
-            line-height: 1.5; 
-        }
+        .signature-area { margin-top: 20mm; text-align: center; font-size: 16pt; line-height: 1.5; }
 
         /* Toolbar Styles */
         .toolbar { 
             width: 100%; position: sticky; top: 0; z-index: 1000; 
             background: white; padding: 10px; border-bottom: 1px solid #ddd; 
-            display: flex; justify-content: center; gap: 10px; align-items: center;
+            display: flex; justify-content: center; gap: 8px; align-items: center;
         }
         .btn { 
-            padding: 8px 15px; border: none; font-family: 'THSarabunNew'; 
+            padding: 8px 12px; border: none; font-family: 'THSarabunNew'; 
             font-size: 15pt; cursor: pointer; font-weight: bold; border-radius: 6px;
             display: flex; align-items: center; gap: 5px;
+        }
+
+        /* --- แก้ไข: ปรับปุ่มสำหรับจอเล็ก --- */
+        @media screen and (max-width: 600px) {
+            .btn span { display: none; } /* ซ่อนข้อความ เหลือแต่ไอคอน */
+            .btn { padding: 10px 15px; }
+            .date-input { width: 130px; }
+            #reportWrapper { transform: scale(0.4); transform-origin: top center; margin-bottom: -60%; }
         }
     </style>
 </head>
 <body>
     <div class="toolbar">
         <button class="btn" style="background: #f3f4f6; color: #374151;" onclick="location.href='index.html'">
-            🏠 กลับหน้าหลัก
+            <i class="fa-solid fa-house"></i><span> กลับหน้าหลัก</span>
         </button>
-        <input type="date" id="reportDate" style="padding: 5px; font-family: 'THSarabunNew'; font-size: 15pt; border-radius: 5px; border: 1px solid #ccc;">
-        <button class="btn" style="background: #4f46e5; color: white;" onclick="loadData()">🔍 แสดงรายงาน</button>
-        <button class="btn" style="background: #1e293b; color: white;" onclick="window.print()">📥 พิมพ์ PDF</button>
+        <input type="date" id="reportDate" class="date-input" style="padding: 5px; font-family: 'THSarabunNew'; font-size: 14pt; border-radius: 5px; border: 1px solid #ccc;">
+        <button class="btn" style="background: #4f46e5; color: white;" onclick="loadData()">
+            <i class="fa-solid fa-magnifying-glass"></i><span> แสดงรายงาน</span>
+        </button>
+        <button class="btn" style="background: #1e293b; color: white;" onclick="window.print()">
+            <i class="fa-solid fa-file-pdf"></i><span> พิมพ์ PDF</span>
+        </button>
     </div>
 
     <div id="reportWrapper"></div>
@@ -131,23 +131,28 @@
             try {
                 const { data: users } = await sbClient.from(TAS_CONFIG.TABLE_USER).select('*');
                 const { data: att } = await sbClient.from(TAS_CONFIG.TABLE_TARGET).select('*').eq('work_date', dateStr);
+                const { data: leaves } = await sbClient.from('Leave_records').select('*').eq('leave_date', dateStr);
                 const { data: settings } = await sbClient.from(TAS_CONFIG.TABLE_SETTINGS).select('*');
                 
                 const config = {}; settings?.forEach(s => config[s.key] = s.value);
                 const attMap = {}; att?.forEach(a => attMap[a.personnel_id] = a);
+                const leaveMap = {}; leaves?.forEach(l => leaveMap[l.personnel_id] = l);
 
                 const groups = {};
                 users?.forEach(u => {
                     const type = u.personnel_type || 'ทั่วไป';
                     if(!groups[type]) groups[type] = [];
                     const ts = attMap[u.personnel_id];
+                    const lv = leaveMap[u.personnel_id];
                     u.tIn = ts?.time_in || "";
                     u.tOut = ts?.time_out || "";
+                    u.note = lv?.leave_type || (u.tIn > (config['Late'] || '08:30') ? "มาสาย" : "");
+                    u.sortKey = u.tIn ? `1_${u.tIn}` : `2_${u.name.trim()}`;
                     groups[type].push(u);
                 });
 
                 Object.keys(groups).sort().forEach(type => {
-                    const list = groups[type];
+                    const list = groups[type].sort((a,b) => a.sortKey.localeCompare(b.sortKey));
                     const totalP = Math.ceil(list.length / ROWS_PER_PAGE);
 
                     for(let p = 0; p < totalP; p++) {
@@ -176,22 +181,25 @@
                                     ${items.map((u, i) => `
                                         <tr>
                                             <td style="text-align:center">${(p * ROWS_PER_PAGE) + i + 1}</td>
-                                            <td>${u.name}</td>
-                                            <td style="text-align:center">${u.tIn.slice(0,5)}</td>
-                                            <td style="text-align:center">${u.tOut.slice(0,5)}</td>
-                                            <td></td>
+                                            <td>${u.name.trim()}</td>
+                                            <td style="text-align:center">${u.tIn ? u.tIn.slice(0,5) : ''}</td>
+                                            <td style="text-align:center">${u.tOut ? u.tOut.slice(0,5) : ''}</td>
+                                            <td style="font-size:14pt;">${u.note}</td>
                                         </tr>`).join('')}
                                 </tbody>
                             </table>
                         `;
 
                         if(p === totalP - 1) {
+                            const trip = list.filter(x => x.note.includes('ราชการ')).length;
+                            const leave = list.filter(x => x.note && !x.note.includes('ราชการ') && !x.note.includes('สาย')).length;
+                            
                             const footer = document.createElement('div');
                             footer.className = 'footer-area';
                             footer.innerHTML = `
                                 <div class="summary-grid">
-                                    <div>- ทั้งหมด ${list.length} คน<br>- ตำแหน่งว่าง - คน</div>
-                                    <div>- มาปฏิบัติราชการ ${list.length} คน<br>- ไม่มาปฏิบัติราชการ - คน</div>
+                                    <div>- ทั้งหมด ${list.length} คน<br>- ตำแหน่งว่าง ${getVal(config['vacant_position'], type)} คน<br>- ไปราชการ ${trip || '-'} คน</div>
+                                    <div>- มาปฏิบัติราชการ ${list.length - leave} คน<br>- ไม่มาปฏิบัติราชการ ${leave || '-'} คน</div>
                                 </div>
                                 <div class="signature-area">
                                     (ลงชื่อ)............................................................<br>
@@ -205,6 +213,12 @@
                     }
                 });
             } catch (e) { console.error(e); }
+        }
+
+        function getVal(str, type) {
+            if(!str) return "-";
+            const pair = str.split(',').find(p => p.trim().startsWith(type+":"));
+            const v = pair?.split(':')[1]; return (v && v.trim() !== "0") ? v.trim() : "-";
         }
 
         function formatThaiDate(d) {
