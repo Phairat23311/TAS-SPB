@@ -10,7 +10,6 @@
     <link rel="apple-touch-icon" href="favicon.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
 
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -30,7 +29,7 @@
         :root { 
             --paper-w: 210mm; --paper-h: 297mm;
             --pad-top: 15mm; --pad-left: 30mm; --pad-right: 15mm;
-            --line-h: 26px; /* บรรทัดฐาน 26px */
+            --line-h: 26px; 
         }
         
         * { box-sizing: border-box; -webkit-print-color-adjust: exact; }
@@ -43,7 +42,7 @@
             #reportWrapper { padding: 0 !important; width: 100%; }
             .paper { 
                 margin: 0 !important; box-shadow: none !important; 
-                height: 296mm !important; /* ป้องกันหน้าว่างคั่นแผ่น */
+                height: 296.2mm !important; 
                 display: flex !important; flex-direction: column !important;
                 page-break-after: always !important; break-after: page !important;
                 overflow: hidden;
@@ -59,24 +58,19 @@
         }
 
         .page-num { position: absolute; top: 10mm; right: 15mm; font-size: 14pt; z-index: 100; }
-        .rpt-header { text-align: center; margin-bottom: 5mm; min-height: 32mm; display: flex; flex-direction: column; justify-content: center; line-height: 1.1; }
-        .rpt-title { font-size: 18pt; font-weight: bold; display: block; }
-        .rpt-sub { font-size: 16pt; display: block; }
+        
+        /* ปรับปรุงส่วนหัวกระดาษ */
+        .rpt-header { text-align: center; margin-bottom: 5mm; min-height: 32mm; display: flex; flex-direction: column; justify-content: center; line-height: 1.2; }
+        .rpt-title { font-size: 18pt; font-weight: bold; display: block; } /* บรรทัดที่ 1 ตัวหนา */
+        .rpt-sub { font-size: 18pt; font-weight: normal; display: block; } /* บรรทัดที่ 2-3 ขนาด 18pt ตัวปกติ */
 
         .rpt-table { width: 100%; border-collapse: collapse; border: 1.2px solid black; table-layout: fixed; }
         .rpt-table th { border: 1px solid black; background: #fff !important; height: 35px; font-size: 16pt; font-weight: bold; }
         .rpt-table td { border: 1px solid black; padding: 0 5px; font-size: 16pt; height: var(--line-h); vertical-align: middle; line-height: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 
-        /* ส่วนสรุป: เว้นจากตาราง 1 บรรทัด (26px) */
         .footer-area { margin-top: var(--line-h); display: flex; flex-direction: column; flex-grow: 1; }
         .summary-grid { display: grid; grid-template-columns: 1.1fr 1fr; font-size: 16pt; line-height: 1.3; }
-        
-        /* ส่วนลงนาม: ห่างจากขอบล่าง 3 บรรทัด (78px) */
-        .signature-area { 
-            margin-top: auto; 
-            padding-bottom: calc(var(--line-h) * 3); 
-            text-align: center; font-size: 16pt; line-height: 1.5; 
-        }
+        .signature-area { margin-top: auto; padding-bottom: calc(var(--line-h) * 3); text-align: center; font-size: 16pt; line-height: 1.5; }
 
         .toolbar { width: 100%; position: sticky; top: 0; z-index: 1000; background: white; padding: 10px; border-bottom: 1px solid #ddd; display: flex; justify-content: center; gap: 8px; align-items: center; }
         .btn { padding: 8px 15px; border: none; font-family: 'THSarabunNew'; font-size: 15pt; cursor: pointer; font-weight: bold; border-radius: 6px; display: flex; align-items: center; gap: 5px; }
@@ -115,8 +109,7 @@
             const dateStr = document.getElementById('reportDate').value;
             const wrapper = document.getElementById('reportWrapper');
             if(!dateStr) return;
-            
-            wrapper.innerHTML = "<div style='color:white; font-size:18pt; text-align:center;'>กำลังโหลดข้อมูล...</div>";
+            wrapper.innerHTML = "<div style='color:white; text-align:center;'>กำลังโหลด...</div>";
 
             try {
                 const { data: users } = await sbClient.from(TAS_CONFIG.TABLE_USER).select('*');
@@ -195,9 +188,7 @@
                         wrapper.appendChild(page);
                     }
                 });
-            } catch (e) { 
-                wrapper.innerHTML = `<div style='color:red; text-align:center;'>เกิดข้อผิดพลาด: ${e.message}</div>`;
-            }
+            } catch (e) { console.error(e); }
         }
 
         function getVal(str, type) {
