@@ -32,10 +32,10 @@
             --paper-w: 210mm; 
             --paper-h: 297mm;
             --pad-top: 15mm; 
-            --pad-bottom: 10mm; 
             --pad-left: 30mm; 
             --pad-right: 15mm;
-            --line-h: 26px; /* ระยะ 1 บรรทัด */
+            --line-h: 26px; /* บรรทัดละ 26px */
+            --safe-bottom: calc(var(--line-h) * 3); /* เว้น 3 บรรทัดจากขอบล่าง */
         }
         
         * { box-sizing: border-box; -webkit-print-color-adjust: exact; }
@@ -46,7 +46,7 @@
             display: flex; flex-direction: column; align-items: center;
         }
 
-        /* --- ปรับแต่งส่วน PDF ให้ตรงกับ HTML --- */
+        /* --- บังคับการแสดงผล PDF --- */
         @media print {
             @page { size: A4 portrait; margin: 0; }
             body { background: none; }
@@ -55,9 +55,10 @@
             .paper { 
                 margin: 0 !important; 
                 box-shadow: none !important; 
-                height: 296mm !important; /* ล็อคความสูงคงที่สำหรับ PDF */
+                height: 296mm !important; /* ป้องกันหน้าว่างคั่น */
                 display: flex !important;
                 flex-direction: column !important;
+                padding-bottom: var(--safe-bottom) !important; /* ล็อคพื้นที่ 3 บรรทัดล่าง */
                 page-break-after: always !important;
                 break-after: page !important;
                 overflow: hidden;
@@ -69,7 +70,7 @@
             width: var(--paper-w); 
             height: var(--paper-h); 
             background: white; 
-            padding: var(--pad-top) var(--pad-right) var(--pad-bottom) var(--pad-left);
+            padding: var(--pad-top) var(--pad-right) 0 var(--pad-left); /* ย้าย padding ล่างไปจัดการที่ signature-area */
             margin-bottom: 10mm; 
             position: relative; 
             display: flex; 
@@ -90,8 +91,14 @@
         .footer-area { margin-top: var(--line-h); display: flex; flex-direction: column; flex-grow: 1; }
         .summary-grid { display: grid; grid-template-columns: 1.1fr 1fr; font-size: 16pt; line-height: 1.3; }
         
-        /* ส่วนลงนาม: ห่างจากขอบล่าง 3 บรรทัด */
-        .signature-area { margin-top: auto; padding-bottom: calc(var(--line-h) * 3); text-align: center; font-size: 16pt; line-height: 1.5; }
+        /* ส่วนลงนาม: ล็อคตำแหน่งห่างขอบล่าง 3 บรรทัดใน PDF */
+        .signature-area { 
+            margin-top: auto; 
+            padding-bottom: var(--safe-bottom); 
+            text-align: center; 
+            font-size: 16pt; 
+            line-height: 1.5; 
+        }
 
         .toolbar { width: 100%; position: sticky; top: 0; z-index: 1000; background: white; padding: 10px; border-bottom: 1px solid #ddd; display: flex; justify-content: center; gap: 8px; align-items: center; }
         .btn { padding: 8px 15px; border: none; font-family: 'THSarabunNew'; font-size: 15pt; cursor: pointer; font-weight: bold; border-radius: 6px; display: flex; align-items: center; gap: 5px; }
