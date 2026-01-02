@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>รายงานประจำวัน - TAS-SPB</title>
+    <title>รายงานการลงเวลา</title>
     <style>
         @font-face {
             font-family: 'THSarabunNew';
@@ -41,8 +41,12 @@
             .paper { 
                 margin: 0 !important; 
                 box-shadow: none !important; 
-                page-break-after: always !important; /* ป้องกันหน้าว่างแทรก */
-                break-inside: avoid;
+                /* แก้ไข: ใช้ auto เพื่อลดหน้าว่าง และ avoid-page เพื่อความแม่นยำ */
+                page-break-after: auto !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                height: var(--paper-h) !important;
+                max-height: var(--paper-h) !important;
             }
         }
 
@@ -57,21 +61,19 @@
             position: relative; 
             display: flex; 
             flex-direction: column; 
-            overflow: hidden; /* ล็อคระยะหน้าถัดไปไม่ให้ร่น */
+            overflow: hidden;
             box-shadow: 0 0 10px rgba(0,0,0,0.3);
         }
 
-        /* หัวกระดาษ 3 บรรทัด */
         .rpt-header { text-align: center; margin-bottom: 4mm; line-height: 1.1; color: black; }
         .rpt-title { font-size: 18pt; font-weight: bold; display: block; }
         .rpt-sub { font-size: 16pt; display: block; }
 
-        /* ตาราง 28 รายการ */
         .rpt-table { width: 100%; border-collapse: collapse; border: 1.2px solid black; table-layout: fixed; }
         .rpt-table th { border: 1px solid black; background: #ffffff !important; height: 30px; font-size: 16pt; font-weight: bold; }
         .rpt-table td { 
             border: 1px solid black; padding: 0 5px; font-size: 16pt; 
-            height: 24.5px; /* ปรับให้กระชับขึ้นเพื่อรองรับลายเซ็นที่ขยับลง */
+            height: 24.5px; 
             vertical-align: middle; line-height: 1; 
             overflow: hidden; white-space: nowrap; text-overflow: ellipsis; 
         }
@@ -82,7 +84,6 @@
         .footer-area { margin-top: 3mm; }
         .summary-grid { display: grid; grid-template-columns: 1.2fr 1fr; font-size: 16pt; line-height: 1.2; }
         
-        /* ขยับส่วนลงนามลง 4 บรรทัด (ประมาณ 25mm) */
         .signature-area { 
             margin-top: 25mm; 
             text-align: center; 
@@ -114,6 +115,10 @@
             const dateStr = document.getElementById('reportDate').value;
             const wrapper = document.getElementById('reportWrapper');
             if(!dateStr) return;
+
+            // แก้ไข: เปลี่ยนชื่อไฟล์ตามวันที่เลือก
+            document.title = `รายงานการลงเวลา_${dateStr}`;
+            
             wrapper.innerHTML = "";
 
             try {
