@@ -35,7 +35,7 @@
             --pad-bottom: 10mm; 
             --pad-left: 30mm; 
             --pad-right: 15mm;
-            --line-height-fix: 26px;
+            --line-height-fix: 26px; /* ล็อคความสูงบรรทัด */
         }
         
         * { box-sizing: border-box; -webkit-print-color-adjust: exact; }
@@ -54,7 +54,7 @@
             .paper { 
                 margin: 0 !important; 
                 box-shadow: none !important; 
-                height: 296.2mm !important; /* ป้องกันพิกเซลเกินดีดหน้าว่าง */
+                height: 296.2mm !important; /* ป้องกันหน้าว่างคั่น */
                 display: block !important;
                 overflow: hidden;
                 page-break-after: always !important;
@@ -101,7 +101,7 @@
             overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
         }
 
-        /* ส่วนสรุปเว้นจากตาราง 1 บรรทัด */
+        /* ส่วนสรุป: เว้นจากตาราง 1 บรรทัด */
         .footer-area { 
             margin-top: var(--line-height-fix); 
             flex-grow: 1; 
@@ -110,7 +110,7 @@
         }
         .summary-grid { display: grid; grid-template-columns: 1.1fr 1fr; font-size: 16pt; line-height: 1.3; }
         
-        /* ส่วนลงนามห่างจากขอบล่าง 3 บรรทัด */
+        /* ส่วนลงนาม: ห่างจากขอบล่าง 3 บรรทัด */
         .signature-area { 
             margin-top: auto; 
             margin-bottom: calc(var(--line-height-fix) * 3); 
@@ -160,7 +160,7 @@
             const dateStr = document.getElementById('reportDate').value;
             const wrapper = document.getElementById('reportWrapper');
             if(!dateStr) return;
-            document.title = `รายงานการลงเวลา_${dateStr}`;
+            document.title = `รายงาน_${dateStr}`;
             wrapper.innerHTML = "";
 
             try {
