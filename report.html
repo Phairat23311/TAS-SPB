@@ -2,7 +2,7 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>รายงานการลงเวลา</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -34,7 +34,7 @@
             display: flex; flex-direction: column; align-items: center;
         }
 
-        /* --- ป้องกันหน้าว่างและหัวกระดาษร่นขณะพิมพ์ --- */
+        /* --- จุดสำคัญ: แก้ไขการเกิดหน้าว่างขณะพิมพ์ --- */
         @media print {
             @page { 
                 size: A4 portrait; 
@@ -46,12 +46,15 @@
             .paper { 
                 margin: 0 !important; 
                 box-shadow: none !important; 
-                height: 296.5mm !important; /* ลดลงเล็กน้อยเพื่อกันเบราว์เซอร์ดีดหน้าว่าง */
+                /* ใช้ความสูง 296.5mm เพื่อกันพิกเซลส่วนเกินดีดหน้าว่าง */
+                height: 296.5mm !important; 
                 page-break-after: always !important;
                 page-break-inside: avoid !important;
                 display: block !important;
                 overflow: hidden;
             }
+            /* ลบหน้าว่างที่อาจเกิดขึ้นท้ายไฟล์ */
+            .paper:last-child { page-break-after: auto !important; }
         }
 
         #reportWrapper { padding: 20px 0; }
@@ -69,14 +72,11 @@
             overflow: hidden;
         }
 
-        /* ล็อคพิกัดเลขหน้า */
         .page-num { position: absolute; top: 10mm; right: 15mm; font-size: 14pt; z-index: 100; }
         
-        /* ล็อคพื้นที่หัวกระดาษให้คงที่ทุกหน้า */
         .rpt-header { 
             text-align: center; 
             margin-bottom: 5mm; 
-            line-height: 1.1;
             min-height: 32mm; 
             display: flex;
             flex-direction: column;
@@ -88,7 +88,7 @@
         .rpt-table { width: 100%; border-collapse: collapse; border: 1.2px solid black; table-layout: fixed; }
         .rpt-table th { border: 1px solid black; background: #fff !important; height: 35px; font-size: 16pt; font-weight: bold; }
         
-        /* ล็อคความสูงแถว 26px */
+        /* ล็อคความสูง 26px ตามที่คุณต้องการ */
         .rpt-table td { 
             border: 1px solid black; padding: 0 5px; font-size: 16pt; 
             height: 26px; 
@@ -113,13 +113,13 @@
         @media screen and (max-width: 600px) {
             .btn span { display: none; }
             .btn { padding: 10px 18px; }
-            #reportWrapper { transform: scale(0.4); transform-origin: top center; margin-bottom: -60%; }
+            #reportWrapper { transform: scale(0.45); transform-origin: top center; margin-bottom: -55%; }
         }
     </style>
 </head>
 <body>
     <div class="toolbar">
-        <button class="btn" style="background: #f3f4f6; color: #374151;" onclick="location.href='index.html'">
+        <button class="btn" style="background: #f3f4f6; color: #374151;" onclick="location.href='menu.html'">
             <i class="fa-solid fa-house"></i><span> กลับหน้าหลัก</span>
         </button>
         <input type="date" id="reportDate" style="padding: 5px; font-family: 'THSarabunNew'; font-size: 14pt; border-radius: 5px; border: 1px solid #ccc;">
@@ -148,28 +148,23 @@
             try {
                 const { data: users } = await sbClient.from(TAS_CONFIG.TABLE_USER).select('*');
                 const { data: att } = await sbClient.from(TAS_CONFIG.TABLE_TARGET).select('*').eq('work_date', dateStr);
-                const { data: leaves } = await sbClient.from('Leave_records').select('*').eq('leave_date', dateStr);
                 const { data: settings } = await sbClient.from(TAS_CONFIG.TABLE_SETTINGS).select('*');
                 
                 const config = {}; settings?.forEach(s => config[s.key] = s.value);
                 const attMap = {}; att?.forEach(a => attMap[a.personnel_id] = a);
-                const leaveMap = {}; leaves?.forEach(l => leaveMap[l.personnel_id] = l);
 
                 const groups = {};
                 users?.forEach(u => {
                     const type = u.personnel_type || 'ทั่วไป';
                     if(!groups[type]) groups[type] = [];
                     const ts = attMap[u.personnel_id];
-                    const lv = leaveMap[u.personnel_id];
                     u.tIn = ts?.time_in || "";
                     u.tOut = ts?.time_out || "";
-                    u.note = lv?.leave_type || (u.tIn > (config['Late'] || '08:30') ? "มาสาย" : "");
-                    u.sortKey = u.tIn ? `1_${u.tIn}` : `2_${u.name.trim()}`;
                     groups[type].push(u);
                 });
 
                 Object.keys(groups).sort().forEach(type => {
-                    const list = groups[type].sort((a,b) => a.sortKey.localeCompare(b.sortKey));
+                    const list = groups[type].sort((a,b) => (a.tIn||'99:99').localeCompare(b.tIn||'99:99'));
                     const totalP = Math.ceil(list.length / ROWS_PER_PAGE);
 
                     for(let p = 0; p < totalP; p++) {
@@ -201,21 +196,19 @@
                                             <td>${u.name.trim()}</td>
                                             <td style="text-align:center">${u.tIn ? u.tIn.slice(0,5) : ''}</td>
                                             <td style="text-align:center">${u.tOut ? u.tOut.slice(0,5) : ''}</td>
-                                            <td style="font-size:14pt;">${u.note}</td>
+                                            <td></td>
                                         </tr>`).join('')}
                                 </tbody>
                             </table>
                         `;
 
                         if(p === totalP - 1) {
-                            const trip = list.filter(x => x.note.includes('ราชการ')).length;
-                            const leave = list.filter(x => x.note && !x.note.includes('ราชการ') && !x.note.includes('สาย')).length;
                             const footer = document.createElement('div');
                             footer.className = 'footer-area';
                             footer.innerHTML = `
                                 <div class="summary-grid">
-                                    <div>- ทั้งหมด ${list.length} คน<br>- ตำแหน่งว่าง ${getVal(config['vacant_position'], type)} คน<br>- ไปราชการ ${trip || '-'} คน</div>
-                                    <div>- มาปฏิบัติราชการ ${list.length - leave} คน<br>- ไม่มาปฏิบัติราชการ ${leave || '-'} คน</div>
+                                    <div>- ทั้งหมด ${list.length} คน<br>- ตำแหน่งว่าง ${getVal(config['vacant_position'], type)} คน</div>
+                                    <div>- มาปฏิบัติราชการ ${list.length} คน<br>- ไม่มาปฏิบัติราชการ - คน</div>
                                 </div>
                                 <div class="signature-area">
                                     (ลงชื่อ)............................................................<br>
@@ -234,7 +227,7 @@
         function getVal(str, type) {
             if(!str) return "-";
             const pair = str.split(',').find(p => p.trim().startsWith(type+":"));
-            const v = pair?.split(':')[1]; return (v && v.trim() !== "0") ? v.trim() : "-";
+            return pair ? pair.split(':')[1].trim() : "-";
         }
 
         function formatThaiDate(d) {
