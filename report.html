@@ -2,7 +2,7 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>รายงานการลงเวลา</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -21,106 +21,222 @@
             --paper-w: 210mm; 
             --paper-h: 297mm;
             --pad-top: 15mm; 
-            --pad-bottom: 10mm; 
+            --pad-bottom: 20mm; /* เพิ่ม padding bottom เพื่อรองรับ footer */
             --pad-left: 30mm; 
             --pad-right: 15mm;
         }
         
-        * { box-sizing: border-box; -webkit-print-color-adjust: exact; }
+        * { 
+            box-sizing: border-box; 
+            -webkit-print-color-adjust: exact; 
+            -moz-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
         
         body { 
             font-family: 'THSarabunNew', sans-serif; 
-            background: #525659; margin: 0; padding: 0;
-            display: flex; flex-direction: column; align-items: center;
+            background: #525659; 
+            margin: 0; 
+            padding: 0;
+            font-size: 16pt;
         }
 
-        /* บังคับ PDF ให้ตรงพรีวิว */
+        /* --- บังคับการพิมพ์ PDF --- */
         @media print {
-            @page { size: A4 portrait; margin: 0; }
-            body { background: none; }
-            .toolbar { display: none !important; }
-            #reportWrapper { padding: 0 !important; width: 100%; }
+            @page { 
+                size: A4 portrait; 
+                margin: 0; /* ตัด Header/Footer ของเบราว์เซอร์ออก */
+            }
+            body { 
+                background: none; 
+                margin: 0;
+                padding: 0;
+            }
+            .toolbar { 
+                display: none !important; 
+            }
+            #reportWrapper { 
+                padding: 0 !important; 
+                margin: 0 !important;
+                width: 100% !important;
+            }
             .paper { 
                 margin: 0 !important; 
+                padding: var(--pad-top) var(--pad-right) var(--pad-bottom) var(--pad-left) !important;
                 box-shadow: none !important; 
+                width: var(--paper-w) !important;
                 height: var(--paper-h) !important;
-                page-break-before: always !important; /* ขึ้นหน้าใหม่เมื่อเริ่มแผ่นใหม่ */
+                page-break-after: always !important;
+                position: relative;
+                overflow: hidden;
                 display: block !important;
+            }
+            /* หน้าสุดท้ายไม่ต้องมี page-break-after */
+            .paper:last-child {
+                page-break-after: avoid !important;
+            }
+        }
+
+        @media screen {
+            #reportWrapper { 
+                display: flex; 
+                flex-direction: column; 
+                align-items: center; 
+                padding: 20px 0; 
+            }
+            .paper { 
+                width: var(--paper-w); 
+                height: var(--paper-h); 
+                background: white; 
+                padding: var(--pad-top) var(--pad-right) var(--pad-bottom) var(--pad-left);
+                margin-bottom: 10mm; 
+                position: relative; 
+                display: block;
+                box-shadow: 0 0 10px rgba(0,0,0,0.3);
                 overflow: hidden;
             }
-            .paper:first-child { page-break-before: auto !important; }
         }
 
-        #reportWrapper { padding: 20px 0; }
-        
-        .paper { 
-            width: var(--paper-w); 
-            height: var(--paper-h); 
-            background: white; 
-            padding: var(--pad-top) var(--pad-right) var(--pad-bottom) var(--pad-left);
-            margin-bottom: 10mm; 
-            position: relative; 
-            display: flex; 
-            flex-direction: column; 
-            box-shadow: 0 0 10px rgba(0,0,0,0.3);
-            overflow: hidden;
+        /* ล็อคตำแหน่งเลขหน้า */
+        .page-num { 
+            position: absolute; 
+            top: 8mm; 
+            right: 15mm; 
+            font-size: 14pt; 
+            font-weight: bold;
         }
-
-        /* เลขหน้าที่มุมขวาบน */
-        .page-num { position: absolute; top: 10mm; right: 15mm; font-size: 14pt; z-index: 100; }
         
-        /* หัวกระดาษ 3 บรรทัดล็อคความสูง */
+        /* หัวกระดาษ */
         .rpt-header { 
             text-align: center; 
             margin-bottom: 5mm; 
-            line-height: 1.1;
-            min-height: 32mm; 
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
+            line-height: 1.3;
+            padding-bottom: 5mm;
         }
-        .rpt-title { font-size: 18pt; font-weight: bold; display: block; }
-        .rpt-sub { font-size: 16pt; display: block; }
+        .rpt-title { 
+            font-size: 18pt; 
+            font-weight: bold; 
+            display: block; 
+            margin-bottom: 3mm;
+        }
+        .rpt-sub { 
+            font-size: 16pt; 
+            display: block; 
+            margin-bottom: 2mm;
+        }
 
-        .rpt-table { width: 100%; border-collapse: collapse; border: 1.2px solid black; table-layout: fixed; }
-        .rpt-table th { border: 1px solid black; background: #fff !important; height: 35px; font-size: 16pt; font-weight: bold; }
+        /* ตาราง */
+        .rpt-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            border: 1.2px solid black; 
+            table-layout: fixed;
+            font-size: 14pt;
+        }
+        .rpt-table th { 
+            border: 1px solid black; 
+            background-color: #f0f0f0 !important; 
+            height: 12mm; 
+            font-size: 14pt; 
+            font-weight: bold; 
+            padding: 2px 5px;
+            text-align: center;
+            vertical-align: middle;
+        }
         .rpt-table td { 
-            border: 1px solid black; padding: 0 5px; font-size: 16pt; 
-            height: 26px; vertical-align: middle; line-height: 1; 
-            overflow: hidden; white-space: nowrap; 
+            border: 1px solid black; 
+            padding: 0 5px; 
+            height: 9mm; /* ความสูงของแต่ละแถว */
+            vertical-align: middle; 
+            line-height: 1; 
+            overflow: hidden; 
+            white-space: nowrap; 
+            text-overflow: ellipsis;
+            font-size: 14pt;
+        }
+        
+        /* คอลัมน์ */
+        .col-no { width: 40px; text-align: center; }
+        .col-name { width: auto; }
+        .col-time { width: 70px; text-align: center; }
+        .col-note { width: 100px; text-align: center; font-size: 12pt; }
+
+        /* Footer */
+        .footer-area { 
+            position: absolute;
+            bottom: var(--pad-bottom);
+            left: var(--pad-left);
+            right: var(--pad-right);
+            margin-top: 10mm;
+        }
+        .summary-grid { 
+            display: table;
+            width: 100%;
+            font-size: 14pt; 
+            line-height: 1.5;
+            margin-bottom: 10mm;
+        }
+        .summary-grid > div {
+            display: table-cell;
+            width: 50%;
+            vertical-align: top;
+        }
+        .signature-area { 
+            text-align: center; 
+            font-size: 14pt; 
+            line-height: 1.8;
+            margin-top: 15mm;
         }
 
-        .footer-area { margin-top: auto; padding-bottom: 5mm; }
-        .summary-grid { display: grid; grid-template-columns: 1.1fr 1fr; font-size: 16pt; line-height: 1.3; }
-        .signature-area { margin-top: 15mm; text-align: center; font-size: 16pt; line-height: 1.5; }
-
+        /* Toolbar */
         .toolbar { 
-            width: 100%; position: sticky; top: 0; z-index: 1000; 
-            background: white; padding: 10px; border-bottom: 1px solid #ddd; 
-            display: flex; justify-content: center; gap: 8px; align-items: center;
+            width: 100%; 
+            position: sticky; 
+            top: 0; 
+            z-index: 1000; 
+            background: white; 
+            padding: 10px; 
+            border-bottom: 1px solid #ddd; 
+            display: flex; 
+            justify-content: center; 
+            gap: 8px; 
+            align-items: center;
+            flex-wrap: wrap;
         }
         .btn { 
-            padding: 8px 15px; border: none; font-family: 'THSarabunNew'; 
-            font-size: 15pt; cursor: pointer; font-weight: bold; border-radius: 6px;
-            display: flex; align-items: center; gap: 5px;
+            padding: 8px 15px; 
+            border: none; 
+            font-family: 'THSarabunNew'; 
+            font-size: 14pt; 
+            cursor: pointer; 
+            font-weight: bold; 
+            border-radius: 6px;
+            display: flex; 
+            align-items: center; 
+            gap: 5px;
         }
+
         @media screen and (max-width: 600px) {
             .btn span { display: none; }
             .btn { padding: 10px 18px; }
-            #reportWrapper { transform: scale(0.4); transform-origin: top center; margin-bottom: -60%; }
+            #reportWrapper { 
+                transform: scale(0.4); 
+                transform-origin: top center; 
+                margin-bottom: -60%; 
+            }
         }
     </style>
 </head>
 <body>
     <div class="toolbar">
-        <button class="btn" style="background: #f3f4f6; color: #374151;" onclick="location.href='menu.html'">
+        <button class="btn" style="background: #f3f4f6; color: #374151;" onclick="location.href='index.html'">
             <i class="fa-solid fa-house"></i><span> กลับหน้าหลัก</span>
         </button>
         <input type="date" id="reportDate" style="padding: 5px; font-family: 'THSarabunNew'; font-size: 14pt; border-radius: 5px; border: 1px solid #ccc;">
         <button class="btn" style="background: #4f46e5; color: white;" onclick="loadData()">
             <i class="fa-solid fa-magnifying-glass"></i><span> แสดงรายงาน</span>
         </button>
-        <button class="btn" style="background: #1e293b; color: white;" onclick="window.print()">
+        <button class="btn" style="background: #1e293b; color: white;" onclick="printReport()">
             <i class="fa-solid fa-file-pdf"></i><span> พิมพ์ PDF</span>
         </button>
     </div>
@@ -130,14 +246,14 @@
     <script src="supabase.js"></script>
     <script src="config.js"></script>
     <script>
-        const ROWS_PER_PAGE = 28;
+        const ROWS_PER_PAGE = 25; // ลดจำนวนแถวต่อหน้าเพื่อรองรับ header และ footer
 
         async function loadData() {
             const dateStr = document.getElementById('reportDate').value;
             const wrapper = document.getElementById('reportWrapper');
-            if(!dateStr) return;
+            if(!dateStr) return alert('กรุณาเลือกวันที่');
             document.title = `รายงานการลงเวลา_${dateStr}`;
-            wrapper.innerHTML = "";
+            wrapper.innerHTML = "<div style='text-align:center;padding:20px;'>กำลังโหลดข้อมูล...</div>";
 
             try {
                 const { data: users } = await sbClient.from(TAS_CONFIG.TABLE_USER).select('*');
@@ -145,98 +261,177 @@
                 const { data: leaves } = await sbClient.from('Leave_records').select('*').eq('leave_date', dateStr);
                 const { data: settings } = await sbClient.from(TAS_CONFIG.TABLE_SETTINGS).select('*');
                 
-                const config = {}; settings?.forEach(s => config[s.key] = s.value);
-                const attMap = {}; att?.forEach(a => attMap[a.personnel_id] = a);
-                const leaveMap = {}; leaves?.forEach(l => leaveMap[l.personnel_id] = l);
+                const config = {}; 
+                settings?.forEach(s => config[s.key] = s.value);
+                const attMap = {}; 
+                att?.forEach(a => attMap[a.personnel_id] = a);
+                const leaveMap = {}; 
+                leaves?.forEach(l => leaveMap[l.personnel_id] = l);
 
                 const groups = {};
                 users?.forEach(u => {
                     const type = u.personnel_type || 'ทั่วไป';
                     if(!groups[type]) groups[type] = [];
+                    
                     const ts = attMap[u.personnel_id];
                     const lv = leaveMap[u.personnel_id];
+                    
                     u.tIn = ts?.time_in || "";
                     u.tOut = ts?.time_out || "";
-                    u.note = lv?.leave_type || (u.tIn > (config['Late'] || '08:30') ? "มาสาย" : "");
-                    u.sortKey = u.tIn ? `1_${u.tIn}` : `2_${u.name.trim()}`;
+                    
+                    // ตรวจสอบการมาสาย
+                    let note = "";
+                    if (lv?.leave_type) {
+                        note = lv.leave_type;
+                    } else if (u.tIn && config['Late']) {
+                        const lateTime = config['Late'];
+                        if (u.tIn > lateTime) {
+                            note = "มาสาย";
+                        }
+                    }
+                    u.note = note;
+                    
+                    // เรียงลำดับ: คนที่ลงเวลามาก่อน > คนที่ไม่ได้ลงเวลา > ตามชื่อ
+                    if (u.tIn) {
+                        u.sortKey = `1_${u.tIn}`;
+                    } else if (note.includes("ลาป่วย") || note.includes("ลากิจ")) {
+                        u.sortKey = `2_${note}`;
+                    } else {
+                        u.sortKey = `3_${u.name.trim()}`;
+                    }
+                    
                     groups[type].push(u);
                 });
+
+                wrapper.innerHTML = "";
+                let totalPages = 0;
+                let currentPage = 0;
 
                 Object.keys(groups).sort().forEach(type => {
                     const list = groups[type].sort((a,b) => a.sortKey.localeCompare(b.sortKey));
                     const totalP = Math.ceil(list.length / ROWS_PER_PAGE);
+                    totalPages += totalP;
 
                     for(let p = 0; p < totalP; p++) {
+                        currentPage++;
                         const page = document.createElement('div');
                         page.className = 'paper';
                         const items = list.slice(p * ROWS_PER_PAGE, (p + 1) * ROWS_PER_PAGE);
                         
+                        let tableRows = '';
+                        items.forEach((u, i) => {
+                            const rowNum = (p * ROWS_PER_PAGE) + i + 1;
+                            tableRows += `
+                                <tr>
+                                    <td class="col-no">${rowNum}</td>
+                                    <td class="col-name">${u.name.trim()}</td>
+                                    <td class="col-time">${u.tIn ? u.tIn.slice(0,5) : ''}</td>
+                                    <td class="col-time">${u.tOut ? u.tOut.slice(0,5) : ''}</td>
+                                    <td class="col-note">${u.note}</td>
+                                </tr>`;
+                        });
+
                         page.innerHTML = `
-                            <div class="page-num">${p+1}/${totalP}</div>
+                            <div class="page-num">${currentPage}</div>
                             <div class="rpt-header">
                                 <span class="rpt-title">บันทึกการลงเวลาปฏิบัติงานของ${type}</span>
                                 <span class="rpt-sub">${formatThaiDate(dateStr)}</span>
-                                <span class="rpt-sub">${config['school_name'] || ''}</span>
+                                <span class="rpt-sub">${config['school_name'] || 'โรงเรียนเทศบาล๑ (ถนนนครนอก)'}</span>
                             </div>
                             <table class="rpt-table">
                                 <thead>
                                     <tr>
-                                        <th style="width:45px">ที่</th>
-                                        <th>ชื่อ-สกุล</th>
-                                        <th style="width:80px">ลงเวลามา</th>
-                                        <th style="width:80px">ลงเวลากลับ</th>
-                                        <th style="width:110px">หมายเหตุ</th>
+                                        <th class="col-no">ที่</th>
+                                        <th class="col-name">ชื่อ-สกุล</th>
+                                        <th class="col-time">เวลามา</th>
+                                        <th class="col-time">เวลากลับ</th>
+                                        <th class="col-note">หมายเหตุ</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    ${items.map((u, i) => `
-                                        <tr>
-                                            <td style="text-align:center">${(p * ROWS_PER_PAGE) + i + 1}</td>
-                                            <td>${u.name.trim()}</td>
-                                            <td style="text-align:center">${u.tIn ? u.tIn.slice(0,5) : ''}</td>
-                                            <td style="text-align:center">${u.tOut ? u.tOut.slice(0,5) : ''}</td>
-                                            <td style="font-size:14pt;">${u.note}</td>
-                                        </tr>`).join('')}
+                                    ${tableRows}
                                 </tbody>
                             </table>
                         `;
 
-                        if(p === totalP - 1) {
+                        // เพิ่ม footer ในหน้าแรกของแต่ละกลุ่ม
+                        if (p === totalP - 1) {
+                            const present = list.filter(x => x.tIn).length;
                             const trip = list.filter(x => x.note.includes('ราชการ')).length;
                             const leave = list.filter(x => x.note && !x.note.includes('ราชการ') && !x.note.includes('สาย')).length;
                             const late = list.filter(x => x.note === 'มาสาย').length;
+                            const absent = list.length - present - leave;
+                            
                             const footer = document.createElement('div');
                             footer.className = 'footer-area';
                             footer.innerHTML = `
                                 <div class="summary-grid">
-                                    <div>- ทั้งหมด ${list.length} คน<br>- ตำแหน่งว่าง ${getVal(config['vacant_position'], type)} คน<br>- ไปราชการ ${trip || '-'} คน</div>
-                                    <div>- มาปฏิบัติราชการ ${list.length - leave} คน<br>- มาสาย ${late || '-'} คน<br>- ไม่มาปฏิบัติราชการ ${leave || '-'} คน</div>
+                                    <div>
+                                        - ทั้งหมด ${list.length} คน<br>
+                                        - ตำแหน่งว่าง ${config['vacant_position'] || '0'} คน<br>
+                                        - ไปราชการ ${trip} คน
+                                    </div>
+                                    <div>
+                                        - มาปฏิบัติราชการ ${present} คน<br>
+                                        - มาสาย ${late} คน<br>
+                                        - ไม่มาปฏิบัติราชการ ${leave + absent} คน
+                                    </div>
                                 </div>
                                 <div class="signature-area">
                                     (ลงชื่อ)............................................................<br>
-                                    (${config['signer_name'] || ''})<br>
-                                    ${config['signer_position'] || ''}
+                                    (${config['signer_name'] || 'นางกาญจนา จันทมัตตุการ'})<br>
+                                    ${config['signer_position'] || 'ผู้อำนวยการสถานศึกษาโรงเรียนเทศบาล ๑ (ถนนนครนอก)'}
                                 </div>
                             `;
                             page.appendChild(footer);
                         }
+                        
                         wrapper.appendChild(page);
                     }
                 });
-            } catch (e) { console.error(e); }
+
+                if (totalPages === 0) {
+                    wrapper.innerHTML = "<div style='text-align:center;padding:20px;color:red;'>ไม่พบข้อมูลสำหรับวันที่เลือก</div>";
+                }
+
+            } catch (e) { 
+                console.error('Error loading data:', e);
+                wrapper.innerHTML = `<div style='text-align:center;padding:20px;color:red;'>เกิดข้อผิดพลาด: ${e.message}</div>`;
+            }
         }
 
-        function getVal(str, type) {
-            if(!str) return "-";
-            const pair = str.split(',').find(p => p.trim().startsWith(type+":"));
-            const v = pair?.split(':')[1]; return (v && v.trim() !== "0") ? v.trim() : "-";
+        function printReport() {
+            if (document.getElementById('reportWrapper').children.length === 0) {
+                alert('กรุณาแสดงรายงานก่อนพิมพ์');
+                return;
+            }
+            
+            // ตั้งชื่อไฟล์ PDF
+            const dateStr = document.getElementById('reportDate').value || new Date().toISOString().slice(0,10);
+            const fileName = `รายงานการลงเวลา_${dateStr}.pdf`;
+            
+            // ตั้งชื่อหน้าเว็บเพื่อให้ PDF ใช้ชื่อนี้
+            document.title = fileName;
+            
+            // พิมพ์
+            window.print();
         }
 
         function formatThaiDate(d) {
             const date = new Date(d);
-            const months = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
-            return `วัน${['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'][date.getDay()]}ที่ ${date.getDate()} ${months[date.getMonth()]} พ.ศ. ${date.getFullYear()+543}`;
+            const months = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", 
+                          "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+            const days = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
+            return `วัน${days[date.getDay()]}ที่ ${date.getDate()} ${months[date.getMonth()]} พ.ศ. ${date.getFullYear()+543}`;
         }
+
+        // ตั้งค่าวันเริ่มต้นเป็นวันปัจจุบัน
+        document.addEventListener('DOMContentLoaded', function() {
+            const today = new Date().toISOString().slice(0,10);
+            document.getElementById('reportDate').value = today;
+            // โหลดข้อมูลวันปัจจุบันโดยอัตโนมัติ
+            setTimeout(() => loadData(), 500);
+        });
     </script>
 </body>
 </html>
