@@ -83,7 +83,8 @@
         .pagination { display: flex; gap: 10px; justify-content: center; margin-top: 15px; }
         .btn-page { padding: 10px 18px; border: none; border-radius: 12px; background: var(--white); color: var(--primary); font-weight: 600; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .btn-page:disabled { opacity: 0.5; }
-        .btn-action { width: 100%; padding: 16px; border: none; border-radius: 16px; background: var(--primary); color: white; font-weight: 700; cursor: pointer; }
+        .btn-action { width: 100%; padding: 16px; border: none; border-radius: 16px; background: var(--primary); color: white; font-weight: 700; cursor: pointer; transition: background 0.2s; }
+        .btn-action:active { background: #4338ca; }
 
         @media (max-width: 600px) {
             .header-section { flex-direction: column; align-items: flex-start; gap: 15px; }
@@ -363,11 +364,71 @@
         function changeAttWeek(s) { weekOffset += s; loadAttendance(); }
         function changeLeavePage(s) { leavePage += s; loadLeaves(); }
 
+        // --- UPDATED: ฟังก์ชันเปลี่ยนรหัสผ่านแบบครบวงจร ---
         async function changePassword() {
-            const { value: newPass } = await Swal.fire({ title: 'เปลี่ยนรหัสผ่าน', input: 'password', showCancelButton: true, confirmButtonColor: '#4f46e5' });
-            if (newPass) {
-                await sbClient.from(TAS_CONFIG.TABLE_USER).update({ Password: newPass }).eq('personnel_id', user.personnel_id);
-                Swal.fire('สำเร็จ', 'บันทึกแล้ว', 'success');
+            const { value: formValues } = await Swal.fire({
+                title: 'เปลี่ยนรหัสผ่าน',
+                html:
+                    '<input id="swal-old-pass" class="swal2-input" type="password" placeholder="รหัสผ่านเดิม">' +
+                    '<input id="swal-new-pass" class="swal2-input" type="password" placeholder="รหัสผ่านใหม่">' +
+                    '<input id="swal-confirm-pass" class="swal2-input" type="password" placeholder="ยืนยันรหัสผ่านใหม่">',
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonText: 'บันทึกการเปลี่ยนแปลง',
+                cancelButtonText: 'ยกเลิก',
+                confirmButtonColor: '#4f46e5',
+                preConfirm: async () => {
+                    const oldPass = document.getElementById('swal-old-pass').value;
+                    const newPass = document.getElementById('swal-new-pass').value;
+                    const confirmPass = document.getElementById('swal-confirm-pass').value;
+
+                    if (!oldPass || !newPass || !confirmPass) {
+                        Swal.showValidationMessage('กรุณากรอกข้อมูลให้ครบทุกช่อง');
+                        return false;
+                    }
+                    if (newPass !== confirmPass) {
+                        Swal.showValidationMessage('รหัสผ่านใหม่ไม่ตรงกัน');
+                        return false;
+                    }
+                    
+                    // ตรวจสอบรหัสผ่านเดิมจากฐานข้อมูล
+                    try {
+                        const { data: userData, error } = await sbClient
+                            .from(TAS_CONFIG.TABLE_USER)
+                            .select('Password')
+                            .eq('personnel_id', user.personnel_id)
+                            .single();
+
+                        if (error || !userData) {
+                            Swal.showValidationMessage('ไม่สามารถตรวจสอบข้อมูลผู้ใช้ได้');
+                            return false;
+                        }
+
+                        if (userData.Password !== oldPass) {
+                            Swal.showValidationMessage('รหัสผ่านเดิมไม่ถูกต้อง');
+                            return false;
+                        }
+
+                        return newPass;
+                    } catch (err) {
+                        Swal.showValidationMessage('เกิดข้อผิดพลาดในการเชื่อมต่อ');
+                        return false;
+                    }
+                }
+            });
+
+            if (formValues) {
+                // อัปเดตรหัสผ่านใหม่
+                const { error } = await sbClient
+                    .from(TAS_CONFIG.TABLE_USER)
+                    .update({ Password: formValues })
+                    .eq('personnel_id', user.personnel_id);
+
+                if (error) {
+                    Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถเปลี่ยนรหัสผ่านได้', 'error');
+                } else {
+                    Swal.fire('สำเร็จ', 'เปลี่ยนรหัสผ่านเรียบร้อยแล้ว', 'success');
+                }
             }
         }
     </script>
