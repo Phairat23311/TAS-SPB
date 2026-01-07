@@ -623,7 +623,7 @@
 
             if (f) {
                 const targetDate = f.date;
-                const { data: existing } = await sbClient.from(TAS_CONFIG.TABLE_TARGET).select('id').eq('personnel_id', f.pid).eq('work_date', targetDate).maybeSingle();
+                const { data: existing } = await sbClient.from(TAS_CONFIG.TABLE_TARGET).select('id,time_in,time_out').eq('personnel_id', f.pid).eq('work_date', targetDate).maybeSingle();
 
                 if (existing) {
                     let up = {};
