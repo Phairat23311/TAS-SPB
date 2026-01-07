@@ -1,59 +1,86 @@
 // ==========================================
-// ⚙️ config.js (Updated for Multi-Level)
+// ส่วนตั้งค่าระบบ (Configuration)
 // ==========================================
-const TAS_CONFIG = {
-    SUPABASE_URL: "https://tdcmbskmlrwhbjrjyjkk.supabase.co",
-    SUPABASE_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkY21ic2ttbHJ3aGJqcmp5amtrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI2MTY4NTYsImV4cCI6MjA3ODE5Mjg1Nn0.FeYe75J8X_2LoQgG_JWyPNCKcuCL_otsmSW0s5bijAg", 
-    
-    TABLE_USER: "Personnel",
-    TABLE_SETTINGS: "Settings",
-    TABLE_SOURCE: "TimeStamp", // ใช้ TimeStamp ตามที่คุยกันล่าสุด
-    TABLE_TARGET: "TimeStamp"
+const CONFIG = {
+    appName: "TAS-SPB System",
+    version: "1.0.0",
+    apiBaseUrl: "https://api.example.com", // ตัวอย่าง URL API
+    themeColor: "#4F46E5"
 };
 
-let sbClient = null;
+// ==========================================
+// ส่วนจัดการสิทธิ์การเข้าถึง (Access Control Logic)
+// ==========================================
 
-function initSystem() {
-    if (typeof window.supabase === 'undefined') return false;
-    sbClient = window.supabase.createClient(TAS_CONFIG.SUPABASE_URL, TAS_CONFIG.SUPABASE_KEY);
-    return true;
-}
+// ฟังก์ชันดึงระดับผู้ใช้งานจาก LocalStorage
+function getUserLevel() {
+    try {
+        // ดึงข้อมูลจาก localStorage (รองรับทั้ง key 'user_data' และ 'user')
+        const userStr = localStorage.getItem('user_data') || localStorage.getItem('user');
+        
+        if (!userStr) return 0; // ไม่พบข้อมูล = ระดับ 0
 
-// ✅ 1. checkAuth: ตรวจสอบแค่ว่า "ล็อกอินหรือยัง" (ไม่เช็ค Level)
-function checkAuth() {
-    const stored = localStorage.getItem('tas_user');
-    if (!stored) { 
-        window.location.href = 'login.html'; 
-        return null; 
+        const user = JSON.parse(userStr);
+        // แปลงเป็นตัวเลข ถ้าไม่มีให้เป็น 0
+        return parseInt(user.level || user.role || 0); 
+    } catch (e) {
+        console.error("Error parsing user data:", e);
+        return 0; // กรณี error ให้เป็นระดับต่ำสุด
     }
-    return JSON.parse(stored);
 }
 
-// ✅ 2. checkAccess: ฟังก์ชันเสริมสำหรับหน้าเฉพาะทาง (เช่น process.html)
-// วิธีใช้: checkAccess(['1', '2']) -> อนุญาตเฉพาะ Level 1 และ 2
-function checkAccess(allowedLevels) {
-    const user = checkAuth();
-    if (user) {
-        const myLevel = String(user.level);
-        if (!allowedLevels.includes(myLevel)) {
-            alert(`⛔ คุณไม่มีสิทธิ์เข้าถึงหน้านี้ (Level ${myLevel})`);
+// ฟังก์ชันตรวจสอบสิทธิ์ก่อนเข้าหน้าเว็บ
+// allowedLevels: อาร์เรย์ของ level ที่อนุญาตให้เข้าได้ เช่น [1] หรือ [1, 2]
+function checkAuth(allowedLevels) {
+    const userLevel = getUserLevel();
+
+    // ถ้า allowedLevels เป็น '*' คือเข้าได้ทุกคน
+    if (allowedLevels === '*') return;
+
+    // ตรวจสอบว่า userLevel ปัจจุบัน อยู่ในรายการที่อนุญาตหรือไม่
+    if (!allowedLevels.includes(userLevel)) {
+        // ใช้ SweetAlert2 ถ้ามี หรือใช้ alert ธรรมดา
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'error',
+                title: 'ไม่มีสิทธิ์เข้าถึง',
+                text: 'ระดับบัญชีของคุณไม่ได้รับอนุญาตให้เข้าถึงหน้านี้',
+                confirmButtonText: 'กลับหน้าเมนู',
+                allowOutsideClick: false
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = 'menu.html';
+                }
+            });
+        } else {
+            alert('คุณไม่มีสิทธิ์เข้าถึงหน้านี้');
             window.location.href = 'menu.html';
-            return false;
         }
     }
-    return true;
 }
 
-function logout() {
-    localStorage.removeItem('tas_user');
-    window.location.href = 'login.html';
-}
+// ฟังก์ชันสำหรับซ่อน/แสดงปุ่มในหน้า Menu ตามระดับ
+function applyMenuVisibility() {
+    const userLevel = getUserLevel();
+    console.log("Current User Level:", userLevel);
 
-function generateID() {
-    const now = new Date();
-    const pad = (n) => String(n).padStart(2, '0');
-    const r = Math.floor(Math.random() * 9999).toString().padStart(4, '0');
-    return `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}${r}`;
-}
+    // รายชื่อ ID ของปุ่มเมนูต่างๆ
+    const btnSettings = document.getElementById('menu-settings'); // Admin Tools
+    const btnProcess = document.getElementById('menu-process');   // ประมวลผล
+    const btnReport = document.getElementById('menu-report');     // รายงาน
+    // โปรไฟล์ (menu-profile) แสดงตลอด ไม่ต้องซ่อน
 
-initSystem();
+    // กฎการแสดงผล
+    
+    // Level 2: ไม่เห็น Settings
+    if (userLevel === 2) {
+        if (btnSettings) btnSettings.style.display = 'none';
+    }
+
+    // Level อื่นๆ (0 หรือ Unspecified): เห็นแค่ Profile (ซ่อน Process, Report, Settings)
+    if (userLevel !== 1 && userLevel !== 2) {
+        if (btnSettings) btnSettings.style.display = 'none';
+        if (btnProcess) btnProcess.style.display = 'none';
+        if (btnReport) btnReport.style.display = 'none';
+    }
+}
